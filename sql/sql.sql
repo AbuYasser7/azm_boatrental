@@ -1,81 +1,89 @@
--- =========================================
--- Al Azm County — Advanced Boat Rental (ESX)
--- Database Schema — by abuyasser (discord.gg/azm)
--- Version: 2.1.0
--- =========================================
+-- ====================================================
+--  AZM Boat Rental SQL Schema
+--  Built for Al Azm County by abuyasser (discord.gg/azm)
+-- ====================================================
 
--- Main boat shops table
 CREATE TABLE IF NOT EXISTS `azm_boat_shops` (
-  `id` INT PRIMARY KEY,
-  `name` VARCHAR(64) NOT NULL,
+  `id` INT NOT NULL PRIMARY KEY,
+  `name` VARCHAR(100) NOT NULL,
   `owner_identifier` VARCHAR(64) DEFAULT NULL,
   `owner_name` VARCHAR(64) DEFAULT NULL,
   `expires_at` DATETIME DEFAULT NULL,
-  `balance` INT NOT NULL DEFAULT 0,
+  `balance` INT DEFAULT 0,
   `platform_fee_pct` INT DEFAULT 0,
   `deposit_default` INT DEFAULT 0,
-  `ped_x` DOUBLE, `ped_y` DOUBLE, `ped_z` DOUBLE, `ped_h` DOUBLE,
-  `menu_x` DOUBLE, `menu_y` DOUBLE, `menu_z` DOUBLE, `menu_h` DOUBLE,
-  `blip_x` DOUBLE, `blip_y` DOUBLE, `blip_z` DOUBLE,
-  INDEX(`owner_identifier`)
+  `ped_x` FLOAT DEFAULT 0,
+  `ped_y` FLOAT DEFAULT 0,
+  `ped_z` FLOAT DEFAULT 0,
+  `ped_h` FLOAT DEFAULT 0,
+  `menu_x` FLOAT DEFAULT 0,
+  `menu_y` FLOAT DEFAULT 0,
+  `menu_z` FLOAT DEFAULT 0,
+  `menu_h` FLOAT DEFAULT 0,
+  `blip_x` FLOAT DEFAULT 0,
+  `blip_y` FLOAT DEFAULT 0,
+  `blip_z` FLOAT DEFAULT 0,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Spawn points for each shop
+-- ====================================================
+
 CREATE TABLE IF NOT EXISTS `azm_boat_shop_spawns` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `shop_id` INT NOT NULL,
-  `x` DOUBLE, `y` DOUBLE, `z` DOUBLE, `h` DOUBLE,
-  CONSTRAINT `fk_shop_spawn` FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE
+  `x` FLOAT NOT NULL,
+  `y` FLOAT NOT NULL,
+  `z` FLOAT NOT NULL,
+  `h` FLOAT NOT NULL,
+  FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Boat catalog and price configuration
+-- ====================================================
+
 CREATE TABLE IF NOT EXISTS `azm_boat_prices` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `shop_id` INT NOT NULL,
-  `model` VARCHAR(32) NOT NULL,
-  `label` VARCHAR(48) NOT NULL,
-  `price` INT NOT NULL,
+  `model` VARCHAR(50) NOT NULL,
+  `label` VARCHAR(50) NOT NULL,
+  `price` INT DEFAULT 0,
   `min_price` INT DEFAULT 0,
   `max_price` INT DEFAULT 2147483647,
-  CONSTRAINT `fk_shop_price` FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE,
-  UNIQUE KEY `uniq_shop_model` (`shop_id`, `model`)
+  FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Active and historical rentals
+-- ====================================================
+
 CREATE TABLE IF NOT EXISTS `azm_boat_rentals` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `identifier` VARCHAR(64) NOT NULL,
   `shop_id` INT NOT NULL,
-  `model` VARCHAR(32) NOT NULL,
-  `plate` VARCHAR(12) NOT NULL,
-  `rented_at` DATETIME NOT NULL,
+  `model` VARCHAR(50) NOT NULL,
+  `plate` VARCHAR(20) NOT NULL,
+  `rented_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `returned_at` DATETIME DEFAULT NULL,
   `deposit_taken` INT DEFAULT 0,
-  `status` ENUM('active','returned','destroyed','abandoned') NOT NULL DEFAULT 'active',
-  CONSTRAINT `fk_rentals_shop` FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE,
-  INDEX `idx_identifier` (`identifier`)
+  `status` ENUM('active', 'returned', 'destroyed', 'abandoned') DEFAULT 'active',
+  FOREIGN KEY (`shop_id`) REFERENCES `azm_boat_shops`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- =========================================
--- Default data seeding (optional)
--- =========================================
-INSERT IGNORE INTO `azm_boat_shops` (`id`, `name`, `balance`) VALUES
-(1, 'Boat Shop 1', 0),
-(2, 'Boat Shop 2', 0),
-(3, 'Boat Shop 3', 0);
+-- ====================================================
+-- Default Seed Example (optional)
+-- ====================================================
 
--- Default boats (seeded per shop)
-INSERT IGNORE INTO `azm_boat_prices` (`shop_id`, `model`, `label`, `price`)
+INSERT INTO `azm_boat_shops`
+(`id`, `name`, `balance`, `platform_fee_pct`, `deposit_default`,
+ `ped_x`, `ped_y`, `ped_z`, `ped_h`,
+ `menu_x`, `menu_y`, `menu_z`, `menu_h`,
+ `blip_x`, `blip_y`, `blip_z`)
 VALUES
-(1, 'dinghy2', 'Dinghy', 300),
-(1, 'seashark', 'Seashark', 250),
-(1, 'speeder', 'Speeder', 600),
-(2, 'dinghy2', 'Dinghy', 300),
-(2, 'seashark', 'Seashark', 250),
-(3, 'dinghy2', 'Dinghy', 300);
+(1, 'Al Azm Marina 1', 0, 10, 100,
+ -1600.08, -1176.98, 0.51, 300.47,
+ -1600.08, -1176.98, 1.51, 0.88,
+ -1600.08, -1176.98, 1.51);
 
--- =========================================
--- End of File
--- Designed for مقاطعة العزم — Al Azm County
--- by abuyasser (discord.gg/azm)
--- =========================================
+INSERT INTO `azm_boat_prices` (`shop_id`, `model`, `label`, `price`, `min_price`, `max_price`) VALUES
+(1, 'dinghy2', 'Dinghy', 300, 200, 800),
+(1, 'seashark', 'Seashark', 250, 150, 700),
+(1, 'speeder', 'Speeder', 600, 400, 1000),
+(1, 'toro', 'Toro', 800, 500, 1500),
+(1, 'jetmax', 'Jetmax', 900, 600, 2000);

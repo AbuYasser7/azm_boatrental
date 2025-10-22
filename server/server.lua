@@ -1,3 +1,6 @@
+-- azm_boatrental/server/main.lua
+-- Built for Al Azm County by abuyasser (discord.gg/azm)
+
 local ESX = ESX
 
 ---@class ActiveRental
@@ -13,6 +16,33 @@ local AbandonedTimes = {}           -- identifier -> last abandoned time (os.tim
 -- ====== Config flags (تقدر تنقلها لـ config.lua لو تبغى) ======
 local REFUND_DEPOSIT_ON_RETURN   = true
 local FORFEIT_DEPOSIT_ON_DESTROY = true
+
+-- ====== Colors ======
+local COLOR_INFO    = 3447003   -- Blue
+local COLOR_SUCCESS = 5763719   -- Green
+local COLOR_WARN    = 15105570  -- Orange
+local COLOR_ERROR   = 15548997  -- Red
+
+-- ====== Webhook Helper ======
+local function sendLog(title, message, color)
+    if not AZM or not AZM.Logs or not AZM.Webhooks then return end
+    if not AZM.Logs.enable then return end
+    local url = AZM.Webhooks.main
+    if not url or url == "" then return end
+
+    local embed = {{
+        title = title or "Log",
+        description = message or "",
+        color = color or COLOR_INFO,
+        footer = { text = os.date("📅 %Y-%m-%d | 🕒 %H:%M:%S") }
+    }}
+
+    PerformHttpRequest(url, function() end, "POST", json.encode({
+        username = AZM.Logs.username or "🚤 Al Azm Boat Rental | Logs",
+        avatar_url = AZM.Logs.avatar or "",
+        embeds = embed
+    }), {["Content-Type"] = "application/json"})
+end
 
 -- ====== Helpers ======
 local function iden(xPlayer)
@@ -100,6 +130,7 @@ AddEventHandler('onResourceStart', function(res)
     if res ~= GetCurrentResourceName() then return end
     ensureSeeds()
     loadShops()
+    sendLog("🔄 Resource Start", "azm_boatrental started and shops loaded.", COLOR_INFO)
 end)
 
 -- ====== Client Sync ======
@@ -128,8 +159,7 @@ end
 
 -- ====== Rental Core ======
 local function chooseFreeSpawn(shop)
-    -- بسيط: أول نقطة سباون
-    return shop.spawns[1]
+    return shop.spawns[1] -- بسيط: أول نقطة سباون
 end
 
 local function randPlate()
@@ -161,12 +191,16 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     local ok, msg = canPlayerRent(identifier)
     if not ok then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=msg, type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=msg, type='error'})
+        sendLog("⛔ Rent Blocked", ("Player: **%s** (%s)\nReason: %s"):format(xPlayer.getName(), identifier, msg), COLOR_WARN)
+        return
     end
 
     local priceInfo = shop.prices[model]
     if not priceInfo then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Boat unavailable.', type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Boat unavailable.', type='error'})
+        sendLog("❌ Boat Unavailable", ("Player: **%s** (%s)\nShop: **%s**\nModel: **%s**"):format(xPlayer.getName(), identifier, shop.name, tostring(model)), COLOR_ERROR)
+        return
     end
 
     -- enforce min/max
@@ -174,11 +208,14 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     local minp  = priceInfo.min_price or 0
     local maxp  = priceInfo.max_price or 2147483647
     if price < minp or price > maxp then
-        return TriggerClientEvent('ox_lib:notify', src, {
+        TriggerClientEvent('ox_lib:notify', src, {
             title='Boat Rental',
             description=('Price out of allowed range (%d - %d).'):format(minp, maxp),
             type='error'
         })
+        sendLog("⚠️ Price Out of Range", ("Shop: **%s**\nModel: **%s**\nPrice: **%d** (Allowed: %d - %d)\nBy: **%s** (%s)")
+            :format(shop.name, tostring(model), price, minp, maxp, xPlayer.getName(), identifier), COLOR_WARN)
+        return
     end
 
     local deposit = shop.deposit_default or 0
@@ -189,12 +226,17 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     local total = price + deposit
     if xPlayer.getMoney() < total then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Need $%d (price+deposit).'):format(total), type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Need $%d (price+deposit).'):format(total), type='error'})
+        sendLog("💸 Insufficient Cash", ("Player: **%s** (%s)\nNeeded: **$%d**\nHave: **$%d**")
+            :format(xPlayer.getName(), identifier, total, xPlayer.getMoney()), COLOR_WARN)
+        return
     end
 
     local spawn = chooseFreeSpawn(shop)
     if not spawn then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='No spawn points available.', type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='No spawn points available.', type='error'})
+        sendLog("🚫 No Spawn", ("Shop: **%s** | Requested by **%s** (%s)"):format(shop.name, xPlayer.getName(), identifier), COLOR_ERROR)
+        return
     end
 
     -- take money
@@ -203,7 +245,6 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     -- platform/owner split on PRICE (not including deposit)
     local platform_amount = math.floor(price * (platformPct/100))
     local owner_amount = price - platform_amount
-    -- credit shop vault with platform share immediately; owner share أيضاً في نفس الخزنة (تبسيط)
     MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { platform_amount + owner_amount, shopId })
     shop.balance = (shop.balance or 0) + platform_amount + owner_amount
 
@@ -219,6 +260,9 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     TriggerClientEvent('azm_boats:spawnApproved', src, shopId, model, spawn, plate)
     TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Charged $%d (incl. $%d deposit).'):format(total, deposit), type='success'})
+
+    sendLog("🛥️ Boat Rented", ("Player: **%s** (%s)\nShop: **%s** (ID %d)\nModel: **%s**\nPrice: **$%d** | Deposit: **$%d** | Platform%%: **%d%%**\nPlate: **%s**")
+        :format(xPlayer.getName(), identifier, shop.name, shopId, tostring(model), price, deposit, platformPct, plate), COLOR_SUCCESS)
 end)
 
 RegisterNetEvent('azm_boats:returnBoat', function()
@@ -229,7 +273,7 @@ RegisterNetEvent('azm_boats:returnBoat', function()
     if not active then return end
 
     local row = MySQL.single.await([[
-        SELECT r.id, r.deposit_taken, r.shop_id
+        SELECT r.id, r.deposit_taken, r.shop_id, r.model, r.plate
         FROM azm_boat_rentals r
         WHERE r.identifier = ? AND r.plate = ? AND r.status = 'active'
         ORDER BY r.id DESC LIMIT 1
@@ -245,12 +289,16 @@ RegisterNetEvent('azm_boats:returnBoat', function()
     if REFUND_DEPOSIT_ON_RETURN and deposit > 0 then
         xPlayer.addMoney(deposit)
         TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Deposit $%d refunded.'):format(deposit), type='success'})
+        sendLog("⚓ Boat Returned (Refunded)", ("Player: **%s** (%s)\nShopID: **%d**\nModel: **%s** | Plate: **%s**\nDeposit Refunded: **$%d**")
+            :format(xPlayer.getName(), identifier, shopId, row.model, row.plate, deposit), COLOR_SUCCESS)
     else
         -- keep deposit in vault
         MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { deposit, shopId })
         if ShopsCache[shopId] then
             ShopsCache[shopId].balance = (ShopsCache[shopId].balance or 0) + deposit
         end
+        sendLog("⚓ Boat Returned (Deposit Kept)", ("Player: **%s** (%s)\nShopID: **%d**\nModel: **%s** | Plate: **%s**\nDeposit Kept: **$%d**")
+            :format(xPlayer.getName(), identifier, shopId, row.model, row.plate, deposit), COLOR_INFO)
     end
 
     MySQL.update.await([[
@@ -271,7 +319,7 @@ RegisterNetEvent('azm_boats:markDestroyed', function()
     if not active then return end
 
     local row = MySQL.single.await([[
-        SELECT r.id, r.deposit_taken, r.shop_id
+        SELECT r.id, r.deposit_taken, r.shop_id, r.model, r.plate
         FROM azm_boat_rentals r
         WHERE r.identifier = ? AND r.plate = ? AND r.status = 'active'
         ORDER BY r.id DESC LIMIT 1
@@ -285,6 +333,8 @@ RegisterNetEvent('azm_boats:markDestroyed', function()
             end
         end
         MySQL.update.await('UPDATE azm_boat_rentals SET status = ?, returned_at = NOW() WHERE id = ?', { 'destroyed', row.id })
+        sendLog("💥 Boat Destroyed", ("Player: **%s** (%s)\nShopID: **%d**\nModel: **%s** | Plate: **%s**\nDeposit Forfeited: **$%d**")
+            :format(xPlayer.getName(), identifier, row.shop_id, row.model, row.plate, row.deposit_taken or 0), COLOR_WARN)
     end
 
     ActiveRentals[identifier] = nil
@@ -293,7 +343,7 @@ RegisterNetEvent('azm_boats:markDestroyed', function()
 end)
 
 -- mark abandoned if player drops with active rental -> triggers cooldown
-AddEventHandler('playerDropped', function()
+AddEventHandler('playerDropped', function(reason)
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     if not xPlayer then return end
@@ -301,7 +351,7 @@ AddEventHandler('playerDropped', function()
     local active = ActiveRentals[identifier]
     if active then
         local row = MySQL.single.await([[
-            SELECT r.id, r.deposit_taken, r.shop_id
+            SELECT r.id, r.deposit_taken, r.shop_id, r.model, r.plate
             FROM azm_boat_rentals r
             WHERE r.identifier = ? AND r.plate = ? AND r.status = 'active'
             ORDER BY r.id DESC LIMIT 1
@@ -315,6 +365,8 @@ AddEventHandler('playerDropped', function()
                 end
             end
             MySQL.update.await('UPDATE azm_boat_rentals SET status = ?, returned_at = NOW() WHERE id = ?', { 'abandoned', row.id })
+            sendLog("🏳️ Boat Abandoned (playerDropped)", ("Player: **%s** (%s)\nShopID: **%d**\nModel: **%s** | Plate: **%s**\nReason: %s")
+                :format(xPlayer.getName(), identifier, row.shop_id, row.model, row.plate, tostring(reason or "unknown")), COLOR_WARN)
         end
 
         ActiveRentals[identifier] = nil
@@ -327,9 +379,7 @@ RegisterNetEvent('azm_boats:reqOwnerMenu', function()
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     local identifier = iden(xPlayer)
-    -- NOTE: حساب المسافة على السيرفر يتطلب OneSync؛ تقدر تستبدله بتحقق client → server
     for _, shop in pairs(ShopsCache) do
-        -- السماح مباشرة: افتح لوحة المالك إذا كان هو المالك (التحقق المكاني يجرى على الكلاينت عادة)
         if shop.owner_identifier == identifier and (not shop.expires_at or os.time() < os.time(shop.expires_at)) then
             TriggerClientEvent('azm_boats:openOwnerMenu', src, shop)
             return
@@ -350,12 +400,17 @@ RegisterNetEvent('azm_boats:setPrice', function(shopId, model, newPrice)
     if not row then return end
     newPrice = tonumber(newPrice) or 0
     if newPrice < (row.min_price or 0) or newPrice > (row.max_price or 2147483647) then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Price outside allowed limits.', type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Price outside allowed limits.', type='error'})
+        sendLog("🔧 Price Change FAILED", ("ShopID: **%d** | Model: **%s**\nTried: **$%d** (Allowed: %d - %d)\nBy: **%s** (%s)")
+            :format(shopId, tostring(model), newPrice, row.min_price or 0, row.max_price or 2147483647, xPlayer.getName(), identifier), COLOR_ERROR)
+        return
     end
 
     MySQL.update.await('UPDATE azm_boat_prices SET price = ? WHERE shop_id = ? AND model = ?', { newPrice, shopId, model })
     if shop.prices[model] then shop.prices[model].price = newPrice end
     TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Price updated.', type='success'})
+    sendLog("🔧 Price Updated", ("ShopID: **%d** | Model: **%s**\nNew Price: **$%d**\nBy: **%s** (%s)")
+        :format(shopId, tostring(model), newPrice, xPlayer.getName(), identifier), COLOR_INFO)
 end)
 
 RegisterNetEvent('azm_boats:withdraw', function(shopId, amount)
@@ -371,13 +426,18 @@ RegisterNetEvent('azm_boats:withdraw', function(shopId, amount)
 
     local row = MySQL.single.await('SELECT balance FROM azm_boat_shops WHERE id = ?', { shopId })
     if not row or row.balance < amount then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Not enough in the vault.', type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Not enough in the vault.', type='error'})
+        sendLog("🏦 Withdraw FAILED", ("ShopID: **%d**\nRequested: **$%d** | Current: **$%d**\nBy: **%s** (%s)")
+            :format(shopId, amount, row and row.balance or 0, xPlayer.getName(), identifier), COLOR_ERROR)
+        return
     end
 
     MySQL.update.await('UPDATE azm_boat_shops SET balance = balance - ? WHERE id = ?', { amount, shopId })
     shop.balance = (shop.balance or 0) - amount
     xPlayer.addMoney(amount)
     TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Withdrew $%d'):format(amount), type='success'})
+
+    sendLog("🏦 Withdraw", ("ShopID: **%d**\nAmount: **$%d**\nBy: **%s** (%s)"):format(shopId, amount, xPlayer.getName(), identifier), COLOR_SUCCESS)
 end)
 
 RegisterNetEvent('azm_boats:deposit', function(shopId, amount)
@@ -391,13 +451,18 @@ RegisterNetEvent('azm_boats:deposit', function(shopId, amount)
     amount = tonumber(amount) or 0
     if amount <= 0 then return end
     if xPlayer.getMoney() < amount then
-        return TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Not enough cash to deposit.', type='error'})
+        TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description='Not enough cash to deposit.', type='error'})
+        sendLog("🏦 Deposit FAILED", ("ShopID: **%d**\nAmount: **$%d** | Cash: **$%d**\nBy: **%s** (%s)")
+            :format(shopId, amount, xPlayer.getMoney(), xPlayer.getName(), identifier), COLOR_ERROR)
+        return
     end
 
     xPlayer.removeMoney(amount)
     MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { amount, shopId })
     shop.balance = (shop.balance or 0) + amount
     TriggerClientEvent('ox_lib:notify', src, {title='Boat Rental', description=('Deposited $%d'):format(amount), type='success'})
+
+    sendLog("🏦 Deposit", ("ShopID: **%d**\nAmount: **$%d**\nBy: **%s** (%s)"):format(shopId, amount, xPlayer.getName(), identifier), COLOR_SUCCESS)
 end)
 
 -- ====== Admin Commands ======
@@ -419,6 +484,9 @@ ESX.RegisterCommand('boatshop_setowner', {'admin','superadmin'}, function(xPlaye
     MySQL.update.await('UPDATE azm_boat_shops SET owner_identifier = ?, owner_name = ?, expires_at = ? WHERE id = ?', { ident, name, expires, shopId })
     loadShops()
     xPlayer.showNotification(('Shop %d owner set to %s (%s)'):format(shopId, name, ident))
+
+    sendLog("🛂 Set Owner", ("ShopID: **%d**\nOwner: **%s** (`%s`)\nBy Admin: **%s**")
+        :format(shopId, name, ident, xPlayer.getName()), COLOR_INFO)
 end, true, {help = 'Set boat shop owner', arguments = {
     {name='shop', help='Shop ID', type='number'},
     {name='id', help='Server ID', type='number'},
@@ -429,7 +497,10 @@ ESX.RegisterCommand('boatshop_getlicense', {'admin','superadmin'}, function(xPla
     local targetId = tonumber(args.id)
     local t = ESX.GetPlayerFromId(targetId)
     if not t then return showError('Player not online') end
-    xPlayer.showNotification(('Identifier: %s'):format(iden(t)))
+    local ident = iden(t)
+    xPlayer.showNotification(('Identifier: %s'):format(ident))
+    sendLog("🆔 Get License", ("Target: **%s** (srv:%d)\nIdentifier: `%s`\nBy Admin: **%s**")
+        :format((t.getName and t.getName()) or GetPlayerName(targetId), targetId, ident, xPlayer.getName()), COLOR_INFO)
 end, true, {help='Get player license/identifier', arguments={{name='id', type='number', help='Server ID'}}})
 
 ESX.RegisterCommand('boatshop_setlimits', {'admin','superadmin'}, function(xPlayer, args, showError)
@@ -438,7 +509,7 @@ ESX.RegisterCommand('boatshop_setlimits', {'admin','superadmin'}, function(xPlay
     local model  = tostring(args.model or '')
     local minP   = tonumber(args.minp)
     local maxP   = tonumber(args.maxp)
-    if not (shopId and model and minP and maxP and maxP >= minP) then
+    if not (shopId and model and minP ~= nil and maxP ~= nil and maxP >= minP) then
         return showError('Usage: /boatshop_setlimits <shopId> <model> <minPrice> <maxPrice>')
     end
     local aff = MySQL.update.await('UPDATE azm_boat_prices SET min_price = ?, max_price = ? WHERE shop_id = ? AND model = ?',
@@ -449,8 +520,12 @@ ESX.RegisterCommand('boatshop_setlimits', {'admin','superadmin'}, function(xPlay
             ShopsCache[shopId].prices[model].max_price = maxP
         end
         xPlayer.showNotification(('Limits updated for %s (shop %d): %d - %d'):format(model, shopId, minP, maxP))
+        sendLog("🧱 Set Limits", ("ShopID: **%d** | Model: **%s**\nMin: **$%d** | Max: **$%d**\nBy Admin: **%s**")
+            :format(shopId, model, minP, maxP, xPlayer.getName()), COLOR_INFO)
     else
         showError('Model not found for this shop.')
+        sendLog("🧱 Set Limits FAILED", ("ShopID: **%d** | Model: **%s**\nBy Admin: **%s**")
+            :format(shopId, model, xPlayer.getName()), COLOR_ERROR)
     end
 end, true, {help='Set min/max price limits', arguments={
     {name='shop', type='number', help='Shop ID'},
@@ -469,6 +544,8 @@ ESX.RegisterCommand('boatshop_setfee', {'admin','superadmin'}, function(xPlayer,
     MySQL.update.await('UPDATE azm_boat_shops SET platform_fee_pct = ? WHERE id = ?', { fee, shopId })
     if ShopsCache[shopId] then ShopsCache[shopId].platform_fee_pct = fee end
     xPlayer.showNotification(('Platform fee for shop %d set to %d%%'):format(shopId, fee))
+    sendLog("📊 Set Platform Fee", ("ShopID: **%d** | Fee: **%d%%**\nBy Admin: **%s**")
+        :format(shopId, fee, xPlayer.getName()), COLOR_INFO)
 end, true, {help='Set platform fee % for a shop', arguments={
     {name='shop', type='number', help='Shop ID'},
     {name='fee',  type='number', help='Percent 0..100'}
@@ -494,6 +571,8 @@ ESX.RegisterCommand('boatshop_deposit', {'admin','superadmin','user'}, function(
     MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { amount, shopId })
     if ShopsCache[shopId] then ShopsCache[shopId].balance = (ShopsCache[shopId].balance or 0) + amount end
     xPlayer.showNotification(('Deposited $%d to shop %d'):format(amount, shopId))
+    sendLog("🏦 Deposit (cmd)", ("ShopID: **%d**\nAmount: **$%d**\nBy: **%s** (%s)")
+        :format(shopId, amount, xPlayer.getName(), iden(xPlayer)), COLOR_SUCCESS)
 end, true, {help='Deposit to shop vault', arguments={
     {name='shop', type='number', help='Shop ID'},
     {name='amount', type='number', help='Amount'}
@@ -520,6 +599,8 @@ ESX.RegisterCommand('boatshop_withdraw', {'admin','superadmin','user'}, function
     if ShopsCache[shopId] then ShopsCache[shopId].balance = (ShopsCache[shopId].balance or 0) - amount end
     xPlayer.addMoney(amount)
     xPlayer.showNotification(('Withdrew $%d from shop %d'):format(amount, shopId))
+    sendLog("🏦 Withdraw (cmd)", ("ShopID: **%d**\nAmount: **$%d**\nBy: **%s** (%s)")
+        :format(shopId, amount, xPlayer.getName(), iden(xPlayer)), COLOR_SUCCESS)
 end, true, {help='Withdraw from shop vault', arguments={
     {name='shop', type='number', help='Shop ID'},
     {name='amount', type='number', help='Amount'}

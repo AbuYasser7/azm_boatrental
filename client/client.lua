@@ -1,10 +1,22 @@
--- azm_boatrental / client.lua
+-- azm_boatrental/client.lua
 -- Built for Al Azm County by abuyasser (discord.gg/azm)
 
 local ESX = ESX
 local PlayerData = {}
 local shops = {}
 local myRental = nil  -- {shop_id, plate, veh(net)}
+
+-- =========================
+-- Localization helper
+-- =========================
+local function L(key, ...)
+    local locTable = (AZM and AZM.Locales and AZM.Locales[AZM.Locale]) or {}
+    local s = locTable[key] or key
+    if select('#', ...) > 0 then
+        return s:format(...)
+    end
+    return s
+end
 
 -- =========================
 -- Bootstrap
@@ -24,19 +36,29 @@ end)
 -- =========================
 local function notify(opts)
     if type(opts) == 'string' then
-        return lib.notify({title = 'Boat Rental', description = opts, type = 'inform'})
+        return lib.notify({ title = L('ui.title'), description = opts, type = 'inform' })
     end
-    opts.title = opts.title or 'Boat Rental'
+    opts.title = opts.title or L('ui.title')
     lib.notify(opts)
 end
 
 local function reqModel(hash)
+    if not IsModelInCdimage(hash) then return false end
     lib.requestModel(hash)
+    return HasModelLoaded(hash)
 end
 
 local function spawnClientBoat(model, coords, plate)
-    reqModel(joaat(model))
-    local veh = CreateVehicle(joaat(model), coords.x, coords.y, coords.z, coords.h or 0.0, true, false)
+    local hash = joaat(model)
+    if not reqModel(hash) then
+        notify({ description = L('error.model_load_failed', tostring(model)), type = 'error' })
+        return nil
+    end
+    local veh = CreateVehicle(hash, coords.x, coords.y, coords.z, coords.h or 0.0, true, false)
+    if not DoesEntityExist(veh) then
+        notify({ description = L('error.spawn_failed'), type = 'error' })
+        return nil
+    end
     SetVehicleOnGroundProperly(veh)
     SetEntityAsMissionEntity(veh, true, true)
     SetVehicleEngineOn(veh, true, true, false)
@@ -59,17 +81,19 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
         SetBlipColour(b, s.blip.colour or 5)
         SetBlipAsShortRange(b, true)
         BeginTextCommandSetBlipName('STRING')
-        AddTextComponentString('Boat Rental')
+        AddTextComponentString(L('ui.blip_name'))
         EndTextCommandSetBlipName(b)
 
         -- Ped
         local pedModel = s.ped and s.ped.model or 'a_m_y_surfer_01'
-        reqModel(joaat(pedModel))
-        local ped = CreatePed(4, joaat(pedModel), s.ped.x, s.ped.y, s.ped.z, s.ped.heading or 0.0, false, true)
-        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)
-        FreezeEntityPosition(ped, true)
-        SetEntityInvincible(ped, true)
-        SetBlockingOfNonTemporaryEvents(ped, true)
+        local pedHash = joaat(pedModel)
+        if reqModel(pedHash) then
+            local ped = CreatePed(4, pedHash, s.ped.x, s.ped.y, s.ped.z, s.ped.heading or 0.0, false, true)
+            TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)
+            FreezeEntityPosition(ped, true)
+            SetEntityInvincible(ped, true)
+            SetBlockingOfNonTemporaryEvents(ped, true)
+        end
 
         -- Menu zone (rent)
         exports.ox_target:addBoxZone({
@@ -81,7 +105,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 {
                     name = ('boat_shop_menu_%s'):format(s.id),
                     icon = 'fa-solid fa-ship',
-                    label = ('Open Boat Shop (%s)'):format(s.name),
+                    label = L('ui.open_shop', s.name),
                     distance = 2.0,
                     onSelect = function()
                         openShopMenu(s.id)
@@ -90,10 +114,10 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 {
                     name = ('boat_owner_menu_%s'):format(s.id),
                     icon = 'fa-solid fa-sack-dollar',
-                    label = 'Owner Panel',
+                    label = L('ui.owner_panel'),
                     distance = 2.0,
                     onSelect = function()
-                        -- الطلب يتم من السيرفر للتحقق من الملكية ثم يرجّع لنا بيانات المتجر
+                        -- يتم التحقق من الملكية على السيرفر
                         TriggerServerEvent('azm_boats:reqOwnerMenu')
                     end
                 }
@@ -111,7 +135,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                     {
                         name = ('boat_return_%s'):format(s.id),
                         icon = 'fa-solid fa-rotate-left',
-                        label = 'Return Rented Boat',
+                        label = L('ui.return_boat'),
                         distance = 5.0,
                         onSelect = function()
                             tryReturnBoat(s.id)
@@ -128,8 +152,9 @@ end)
 -- =========================
 RegisterNetEvent('azm_boats:spawnApproved', function(shop_id, model, coords, plate)
     local veh = spawnClientBoat(model, coords, plate)
-    myRental = {shop_id = shop_id, plate = plate, veh = VehToNet(veh)}
-    notify({description = ('Enjoy your %s!'):format(model), type = 'success'})
+    if not veh then return end
+    myRental = { shop_id = shop_id, plate = plate, veh = VehToNet(veh) }
+    notify({ description = L('notif.enjoy', model), type = 'success' })
 end)
 
 -- Watcher: if the rented boat is destroyed, tell server
@@ -138,12 +163,10 @@ CreateThread(function()
         Wait(1500)
         if myRental and myRental.veh then
             local veh = NetToVeh(myRental.veh)
-            if DoesEntityExist(veh) then
-                if IsEntityDead(veh) then
-                    TriggerServerEvent('azm_boats:markDestroyed')
-                    myRental = nil
-                    notify({description='Boat destroyed. You may rent again.', type='warning'})
-                end
+            if DoesEntityExist(veh) and IsEntityDead(veh) then
+                TriggerServerEvent('azm_boats:markDestroyed')
+                myRental = nil
+                notify({ description = L('notif.destroyed'), type = 'warning' })
             end
         end
     end
@@ -155,10 +178,10 @@ end)
 function openShopMenu(shopId)
     ESX.TriggerServerCallback('azm_boats:getCatalog', function(catalog, canRent, cooldownText, shopName)
         if not canRent then
-            return notify({description=cooldownText or 'You cannot rent right now.', type='error'})
+            return notify({ description = cooldownText or L('error.cannot_rent'), type = 'error' })
         end
         if not catalog or #catalog == 0 then
-            return notify({description='No boats available right now.', type='error'})
+            return notify({ description = L('error.no_catalog'), type = 'error' })
         end
 
         local opts = {}
@@ -174,7 +197,7 @@ function openShopMenu(shopId)
 
         lib.registerContext({
             id = 'azm_boat_menu_'..shopId,
-            title = ('%s — Boats'):format(shopName or ('Shop '..shopId)),
+            title = L('menu.boats_title', shopName or ('#'..shopId)),
             options = opts
         })
         lib.showContext('azm_boat_menu_'..shopId)
@@ -183,55 +206,55 @@ end
 
 function tryReturnBoat(shopId)
     if not myRental or myRental.shop_id ~= shopId then
-        return notify({description='You have no active rental for this shop.', type='error'})
+        return notify({ description = L('error.no_rental_this_shop'), type = 'error' })
     end
     local veh = NetToVeh(myRental.veh)
     if not DoesEntityExist(veh) then
-        return notify({description='Boat not found.', type='error'})
+        return notify({ description = L('error.boat_not_found'), type = 'error' })
     end
     TriggerServerEvent('azm_boats:returnBoat')
     DeleteVehicle(veh)
     myRental = nil
-    notify({description='Boat returned. You can rent again now.', type='success'})
+    notify({ description = L('notif.returned'), type = 'success' })
 end
 
 -- =========================
 -- Owner Panel (server checks ownership then sends us the shop object)
 -- =========================
 RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
-    if not shop then return notify('Owner panel not available.') end
+    if not shop then return notify(L('error.owner_panel')) end
 
     local opts = {
-        { title = ('Shop: %s'):format(shop.name or ('#'..shop.id)), icon = 'store' },
-        { title = ('Balance: $%d'):format(tonumber(shop.balance) or 0), icon = 'sack-dollar' },
+        { title = L('owner.shop', shop.name or ('#'..shop.id)), icon = 'store' },
+        { title = L('owner.balance', tonumber(shop.balance) or 0), icon = 'sack-dollar' },
     }
 
     if shop.platform_fee_pct then
-        opts[#opts+1] = { title = ('Platform Fee: %d%%'):format(shop.platform_fee_pct or 0), icon='percent' }
+        opts[#opts+1] = { title = L('owner.platform_fee', shop.platform_fee_pct or 0), icon = 'percent' }
     end
     if shop.deposit_default then
-        opts[#opts+1] = { title = ('Deposit Default: $%d'):format(shop.deposit_default or 0), icon='coins' }
+        opts[#opts+1] = { title = L('owner.deposit_default', shop.deposit_default or 0), icon = 'coins' }
     end
 
     -- Quick withdraws
     opts[#opts+1] = {
-        title = 'Withdraw $1,000',
+        title = L('owner.withdraw_1000'),
         icon = 'arrow-down',
         onSelect = function() TriggerServerEvent('azm_boats:withdraw', shop.id, 1000) end
     }
     opts[#opts+1] = {
-        title = 'Withdraw $5,000',
+        title = L('owner.withdraw_5000'),
         icon = 'arrow-down',
         onSelect = function() TriggerServerEvent('azm_boats:withdraw', shop.id, 5000) end
     }
 
     -- Custom withdraw
     opts[#opts+1] = {
-        title = 'Withdraw (custom)',
+        title = L('menu.withdraw_custom'),
         icon = 'arrow-down',
         onSelect = function()
-            local input = lib.inputDialog('Withdraw amount', {
-                { type='number', label='Amount', required=true, min=1 }
+            local input = lib.inputDialog(L('menu.withdraw_custom'), {
+                { type='number', label=L('ui.amount'), required=true, min=1 }
             })
             if input and input[1] then
                 TriggerServerEvent('azm_boats:withdraw', shop.id, tonumber(input[1]))
@@ -241,11 +264,11 @@ RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
 
     -- Deposit (custom)
     opts[#opts+1] = {
-        title = 'Deposit (custom)',
+        title = L('menu.deposit_custom'),
         icon = 'arrow-up',
         onSelect = function()
-            local input = lib.inputDialog('Deposit amount', {
-                { type='number', label='Amount', required=true, min=1 }
+            local input = lib.inputDialog(L('menu.deposit_custom'), {
+                { type='number', label=L('ui.amount'), required=true, min=1 }
             })
             if input and input[1] then
                 TriggerServerEvent('azm_boats:deposit', shop.id, tonumber(input[1]))
@@ -255,21 +278,21 @@ RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
 
     -- Price editor
     opts[#opts+1] = {
-        title = 'Set Prices',
+        title = L('menu.set_prices'),
         icon = 'tag',
         onSelect = function() openPriceMenu(shop.id) end
     }
 
     -- Refresh
     opts[#opts+1] = {
-        title = 'Refresh',
+        title = L('menu.refresh'),
         icon = 'rotate',
         onSelect = function() TriggerServerEvent('azm_boats:reqOwnerMenu') end
     }
 
     lib.registerContext({
         id='azm_boat_owner_'..shop.id,
-        title=('Owner Panel — %s'):format(shop.name or ('#'..shop.id)),
+        title=L('menu.owner_title', shop.name or ('#'..shop.id)),
         options=opts
     })
     lib.showContext('azm_boat_owner_'..shop.id)
@@ -278,7 +301,7 @@ end)
 function openPriceMenu(shopId)
     ESX.TriggerServerCallback('azm_boats:getCatalog', function(catalog)
         if not catalog or #catalog == 0 then
-            return notify({description='No boats configured for this shop.', type='error'})
+            return notify({ description = L('error.no_catalog_shop'), type = 'error' })
         end
         local opts = {}
         for _, b in ipairs(catalog) do
@@ -286,8 +309,8 @@ function openPriceMenu(shopId)
                 title = ("%s — $%d"):format(b.label, b.price),
                 icon = 'tag',
                 onSelect = function()
-                    local input = lib.inputDialog('Set price for '..b.label, {
-                        {type='number', label='New price', required=true, min=0}
+                    local input = lib.inputDialog(L('menu.set_price_for', b.label), {
+                        {type='number', label=L('ui.new_price'), required=true, min=0}
                     })
                     if input and input[1] then
                         TriggerServerEvent('azm_boats:setPrice', shopId, b.model, tonumber(input[1]))
@@ -295,14 +318,23 @@ function openPriceMenu(shopId)
                 end
             }
         end
-        lib.registerContext({ id = 'azm_boat_prices_'..shopId, title = 'Set Prices', options = opts })
+        lib.registerContext({ id = 'azm_boat_prices_'..shopId, title = L('menu.set_prices'), options = opts })
         lib.showContext('azm_boat_prices_'..shopId)
     end, shopId)
 end
 
 -- =========================
--- Command (owner quick access)
+-- Commands (owner quick access)
 -- =========================
 RegisterCommand('boatshop', function()
     TriggerServerEvent('azm_boats:reqOwnerMenu')
+end)
+
+-- Optional quick return command
+RegisterCommand('returnboat', function()
+    if myRental and myRental.shop_id then
+        tryReturnBoat(myRental.shop_id)
+    else
+        notify({ description = L('error.no_active_rental'), type = 'error' })
+    end
 end)
