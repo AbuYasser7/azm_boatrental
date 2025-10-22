@@ -82,10 +82,26 @@ end)
 -- =========================
 -- Model helper
 -- =========================
-local function reqModel(hash)
+
+-- safety: cache created peds/vehicles so we can clean up
+local createdPeds = {}
+local createdVehicles = {}
+
+-- safe model loader (blocking, small timeout)
+local function safeRequestModel(hash, timeout)
+    timeout = timeout or 5000
     if not IsModelInCdimage(hash) then return false end
-    lib.requestModel(hash)
+    if HasModelLoaded(hash) then return true end
+    RequestModel(hash)
+    local t0 = GetGameTimer()
+    while not HasModelLoaded(hash) and (GetGameTimer() - t0) < timeout do
+        Wait(10)
+    end
     return HasModelLoaded(hash)
+end
+
+local function reqModel(hash)
+    return safeRequestModel(hash, 5000)
 end
 
 local function spawnClientBoat(model, coords, plate)
@@ -94,18 +110,47 @@ local function spawnClientBoat(model, coords, plate)
         notify({ description = L('error.model_load_failed', tostring(model)), type = 'error' })
         return nil
     end
+
     local veh = CreateVehicle(hash, coords.x, coords.y, coords.z, coords.h or 0.0, true, false)
     if not DoesEntityExist(veh) then
+        SetModelAsNoLongerNeeded(hash)
         notify({ description = L('error.spawn_failed'), type = 'error' })
         return nil
     end
+
     SetVehicleOnGroundProperly(veh)
     SetEntityAsMissionEntity(veh, true, true)
     SetVehicleEngineOn(veh, true, true, false)
     SetVehicleDirtLevel(veh, 0.0)
-    SetVehicleNumberPlateText(veh, plate or 'AZMBOAT')
+    SetVehicleNumberPlateText(veh, plate or ('AZM'..math.random(1000,9999)))
     TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
+
+    -- keep track so we can cleanup later (store networked id)
+    local netId = VehToNet(veh)
+    createdVehicles[#createdVehicles+1] = {veh = veh, net = netId}
+
+    -- release model
+    SetModelAsNoLongerNeeded(hash)
     return veh
+end
+
+-- create ped with caching and safe model handling
+local function ensurePedForShop(s)
+    if s._pedEntity and DoesEntityExist(s._pedEntity) then return end
+    local pedModel = s.ped and s.ped.model or 'a_m_y_surfer_01'
+    local pedHash = joaat(pedModel)
+    if not reqModel(pedHash) then return end
+
+    local ped = CreatePed(4, pedHash, s.ped.x, s.ped.y, s.ped.z, s.ped.heading or 0.0, false, true)
+    if DoesEntityExist(ped) then
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)
+        FreezeEntityPosition(ped, true)
+        SetEntityInvincible(ped, true)
+        SetBlockingOfNonTemporaryEvents(ped, true)
+        s._pedEntity = ped
+        createdPeds[#createdPeds+1] = ped
+    end
+    SetModelAsNoLongerNeeded(pedHash)
 end
 
 -- =========================
@@ -124,16 +169,8 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
         AddTextComponentString(L('ui.blip_name'))
         EndTextCommandSetBlipName(b)
 
-        -- Ped
-        local pedModel = s.ped and s.ped.model or 'a_m_y_surfer_01'
-        local pedHash = joaat(pedModel)
-        if reqModel(pedHash) then
-            local ped = CreatePed(4, pedHash, s.ped.x, s.ped.y, s.ped.z, s.ped.heading or 0.0, false, true)
-            TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)
-            FreezeEntityPosition(ped, true)
-            SetEntityInvincible(ped, true)
-            SetBlockingOfNonTemporaryEvents(ped, true)
-        end
+        -- Ped: use cached safe creator
+        ensurePedForShop(s)
 
         -- owner check cached
         ESX.TriggerServerCallback('azm_boats:isOwner', function(isOwner)
@@ -393,4 +430,27 @@ RegisterCommand('returnboat', function()
     else
         notify({ description = L('error.no_active_rental'), type = 'error' })
     end
+end)
+
+-- cleanup entities on resource stop to avoid pool leaks
+AddEventHandler('onResourceStop', function(res)
+    if res ~= GetCurrentResourceName() then return end
+    -- delete created vehicles
+    for _, v in ipairs(createdVehicles) do
+        local ent = v.veh
+        if ent and DoesEntityExist(ent) then
+            SetEntityAsMissionEntity(ent, true, true)
+            DeleteEntity(ent)
+        end
+    end
+    createdVehicles = {}
+
+    -- delete created peds
+    for _, p in ipairs(createdPeds) do
+        if p and DoesEntityExist(p) then
+            SetEntityAsMissionEntity(p, true, true)
+            DeleteEntity(p)
+        end
+    end
+    createdPeds = {}
 end)
