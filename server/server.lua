@@ -206,51 +206,42 @@ RegisterNetEvent('azm_boats:transferOwner', function(shopId, targetServerId, day
     local src = source
     local xPlayer = ESX.GetPlayerFromId(src)
     if not xPlayer then return end
-    local shop = ShopsCache[shopId]
-    if not shop then
-        notify(src, "المتجر غير موجود.", 'error')
+
+    if not isSuperAdmin(xPlayer) then
+        notify(src, "لا تملك صلاحية نقل ملكية المتجر. هذه الخاصية للسوبرأدمن فقط.", 'error')
         return
     end
 
-    -- التحقق: المرسل هو المالك الحالي أو سوبرأدمن
-    local identifier = iden(xPlayer)
-    if not (shop.owner_identifier == identifier or isSuperAdmin(xPlayer)) then
-        notify(src, "ليست لديك صلاحية نقل ملكية هذا المتجر.", 'error')
-        return
+    -- بقية منطق النقل كما كان (كما في النسخة السابقة)
+    local shop = ShopsCache[shopId]
+    if not shop then
+        notify(src, "المتجر غير موجود.", 'error'); return
     end
 
     local target = ESX.GetPlayerFromId(tonumber(targetServerId))
-    if not target then
-        notify(src, "اللاعب الهدف غير متصل.", 'error')
-        return
-    end
+    if not target then notify(src, "اللاعب الهدف غير متصل.", 'error'); return end
 
     local targetIdentifier = iden(target)
     local targetName = target.getName and target.getName() or ("#" .. tostring(targetServerId))
-
-    -- احسب expires_at إن طُلب أيام
     local expires_sql = nil
     if tonumber(days) and tonumber(days) > 0 then
         expires_sql = ("DATE_ADD(NOW(), INTERVAL %d DAY)"):format(tonumber(days))
     end
 
-    -- تحديث DB
     if expires_sql then
         MySQL.update.await('UPDATE azm_boat_shops SET owner_identifier = ?, owner_name = ?, expires_at = ' .. expires_sql .. ' WHERE id = ?', { targetIdentifier, targetName, shopId })
     else
         MySQL.update.await('UPDATE azm_boat_shops SET owner_identifier = ?, owner_name = ?, expires_at = NULL WHERE id = ?', { targetIdentifier, targetName, shopId })
     end
 
-    sendLog("🔁 Ownership Transferred", ("Shop **%s** (ID %d) transferred from **%s** to **%s** by **%s**"):format(shop.name or ("#" .. shopId), shopId, shop.owner_name or 'unknown', targetName, xPlayer.getName()), COLOR_INFO)
-
-    -- reload shops and notify players
     loadShops()
     notify(src, "تم نقل ملكية المتجر بنجاح.", 'success')
-    notify(target.source or target.playerId or tonumber(targetServerId), ("تم منحك ملكية المتجر: %s"):format(shop.name or ("#" .. shopId)), 'success')
+    notify(target.source or tonumber(targetServerId), ("تم منحك ملكية المتجر: %s"):format(shop.name or ("#" .. shopId)), 'success')
+    sendLog("🔁 Ownership Transferred (admin)", ("Shop %s (ID %d) transferred to %s by %s"):format(shop.name or ("#"..shopId), shopId, targetName, xPlayer.getName()), COLOR_INFO)
 end)
 
 -- ====== Cooldown Logic ======
-local function canPlayerRent(identifier)
+local function canPlayerRent(identifier
     if ActiveRentals[identifier] then
         return false, 'You already have an active rental.'
     end
@@ -683,21 +674,22 @@ end, true, {help='Set min/max price limits', arguments={
     {name='maxp', type='number', help='Max price'}
 }})
 
-ESX.RegisterCommand('boatshop_setfee', {'admin','superadmin'}, function(xPlayer, args, showError)
-    if not isSuperAdmin(xPlayer) then return end
-    local shopId = tonumber(args.shop)
-    local fee    = tonumber(args.fee)
-    if not (shopId and fee and fee >= 0 and fee <= 100) then
-        return showError('Usage: /boatshop_setfee <shopId> <feePct 0..100>')
+-- أمر: ضبط نسبة المنصة (platform fee) — سوبرأدمن فقط
+ESX.RegisterCommand('boatshop_setfee', {'superadmin'}, function(xPlayer, args, showError)
+    local shopId = tonumber(args[1])
+    local pct = tonumber(args[2])
+    if not shopId or not pct then
+        return xPlayer.showNotification('استخدام: /boatshop_setfee <shopId> <percentage>')
     end
-    MySQL.update.await('UPDATE azm_boat_shops SET platform_fee_pct = ? WHERE id = ?', { fee, shopId })
-    if ShopsCache[shopId] then ShopsCache[shopId].platform_fee_pct = fee end
-    xPlayer.showNotification(('Platform fee for shop %d set to %d%%'):format(shopId, fee))
-    sendLog("📊 Set Platform Fee", ("ShopID: **%d** | Fee: **%d%%**\nBy Admin: **%s**")
-        :format(shopId, fee, xPlayer.getName()), COLOR_INFO)
-end, true, {help='Set platform fee % for a shop', arguments={
-    {name='shop', type='number', help='Shop ID'},
-    {name='fee',  type='number', help='Percent 0..100'}
+    if pct < 0 or pct > 100 then return xPlayer.showNotification('النسبة يجب أن تكون بين 0 و 100') end
+
+    MySQL.update.await('UPDATE azm_boat_shops SET platform_fee_pct = ? WHERE id = ?', { pct, shopId })
+    loadShops()
+    xPlayer.showNotification(('تم ضبط نسبة المنصة للمحل %d الى %d%%'):format(shopId, pct))
+    sendLog("⚙️ set fee", ("Shop %d platform fee set to %d%% by %s"):format(shopId, pct, xPlayer.getName()), COLOR_INFO)
+end, true, { help = 'Set platform fee %', arguments = {
+    { name = 'shopId', help = 'Shop ID', type = 'number' },
+    { name = 'percentage', help = 'Platform fee percentage', type = 'number' }
 }})
 
 ESX.RegisterCommand('boatshop_deposit', {'admin','superadmin','user'}, function(xPlayer, args, showError)
@@ -751,6 +743,24 @@ ESX.RegisterCommand('boatshop_withdraw', {'admin','superadmin','user'}, function
 end, true, {help='Withdraw from shop vault', arguments={
     {name='shop', type='number', help='Shop ID'},
     {name='amount', type='number', help='Amount'}
+}})
+
+-- أمر: ضبط الوديعة الافتراضية (deposit) — سوبرأدمن فقط
+ESX.RegisterCommand('boatshop_setdeposit', {'superadmin'}, function(xPlayer, args, showError)
+    local shopId = tonumber(args[1])
+    local amount = tonumber(args[2])
+    if not shopId or not amount then
+        return xPlayer.showNotification('استخدام: /boatshop_setdeposit <shopId> <amount>')
+    end
+    if amount < 0 then amount = 0 end
+
+    MySQL.update.await('UPDATE azm_boat_shops SET deposit_default = ? WHERE id = ?', { amount, shopId })
+    loadShops()
+    xPlayer.showNotification(('تم ضبط الوديعة للمحل %d الى $%d'):format(shopId, amount))
+    sendLog("⚙️ set deposit", ("Shop %d deposit set to $%d by %s"):format(shopId, amount, xPlayer.getName()), COLOR_INFO)
+end, true, { help = 'Set default deposit', arguments = {
+    { name = 'shopId', help = 'Shop ID', type = 'number' },
+    { name = 'amount', help = 'Deposit amount', type = 'number' }
 }})
 
 -- utility for vec3 on server if needed
