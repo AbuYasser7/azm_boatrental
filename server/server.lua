@@ -1,7 +1,18 @@
 -- azm_boatrental/server/main.lua
 -- Built for Al Azm County by abuyasser (discord.gg/azm)
 
-local ESX = ESX
+
+local ESX = nil
+
+pcall(function() ESX = exports['es_extended']:getSharedObject() end)
+
+if not ESX then
+    TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+end
+
+if not ESX then
+    print("^3[azm_boatrental]^7 ESX not found. Make sure 'es_extended' starts before this resource.")
+end
 
 ---@class ActiveRental
 --- @field shop_id number

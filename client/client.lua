@@ -1,7 +1,7 @@
 -- azm_boatrental/client.lua
 -- Built for Al Azm County by abuyasser (discord.gg/azm)
 
-local ESX = ESX
+local ESX = exports['es_extended']:getSharedObject()
 local PlayerData = {}
 local shops = {}
 local myRental = nil  -- {shop_id, plate, veh(net)}
