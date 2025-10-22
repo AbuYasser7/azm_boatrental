@@ -7,7 +7,7 @@ AZM.Debug = false                     -- تفعيل وضع التصحيح (debug
 AZM.CooldownMinutes = 60              -- يمنع الاستئجار مرة أخرى قبل (دقائق)
 
 -- اللغة الافتراضية: 'en' أو 'ar'
-AZM.Locale = 'en'
+AZM.Locale = 'ar'
 
 AZM.Groups = {
     SuperAdmin = { 'superadmin', 'admin' } -- صلاحيات الإدارة العليا
@@ -15,7 +15,7 @@ AZM.Groups = {
 
 -- =============== Interaction & Notifications ===============
 -- نظام التنبيهات: 'moh' أو 'pnotify' أو 'ox' (الافتراضي ox_lib)
-AZM.Notify = 'ox'
+AZM.Notify = 'moh'
 
 -- طريقة التفاعل: 'key' لزر E، أو 'target' لاستخدام ox_target
 AZM.Interact    = 'key'
