@@ -87,3 +87,7 @@ INSERT INTO `azm_boat_prices` (`shop_id`, `model`, `label`, `price`, `min_price`
 (1, 'speeder', 'سبيدر', 6000, 4000, 10000),
 (1, 'toro', 'تورو', 8000, 5000, 12000),
 (1, 'jetmax', 'جيتماكس', 10000, 6000, 15000);
+
+INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (1, -1639.12, -1198.00, 0.10, 106.12);
+INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (2, -813.42, -1504.21, 0.15, 171.12);
+INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (3, -304.18, 6631.41, 0.12, 142.00);

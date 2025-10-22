@@ -101,6 +101,7 @@ local function ensureSeeds()
     for _, s in ipairs(AZM.Shops) do
         local exist = MySQL.single.await('SELECT id FROM azm_boat_shops WHERE id = ?', { s.id })
         if not exist then
+            -- موجود سابقاً كما في ملفك: دمج الإدراج الكامل
             MySQL.insert.await([[
                 INSERT INTO azm_boat_shops
                 (id, name, owner_identifier, owner_name, expires_at, balance, platform_fee_pct, deposit_default,
@@ -116,6 +117,22 @@ local function ensureSeeds()
             for _, b in ipairs(AZM.Boats or {}) do
                 MySQL.insert.await('INSERT INTO azm_boat_prices (shop_id, model, label, price, min_price, max_price) VALUES (?,?,?,?,?,?)',
                     { s.id, b.model, b.label, b.price or 0, 0, 2147483647 })
+            end
+        else
+            -- إذا المتجر موجود لكن لا توجد نقاط سباون في DB أدخلها
+            local cnt = MySQL.single.await('SELECT COUNT(*) as c FROM azm_boat_shop_spawns WHERE shop_id = ?', { s.id })
+            if cnt and cnt.c == 0 then
+                for _, sp in ipairs(s.spawns or {}) do
+                    MySQL.insert.await('INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (?,?,?,?,?)', { s.id, sp.x, sp.y, sp.z, sp.h })
+                end
+            end
+            -- ونفس الشيء لأسعار القوارب
+            local pcnt = MySQL.single.await('SELECT COUNT(*) as c FROM azm_boat_prices WHERE shop_id = ?', { s.id })
+            if pcnt and pcnt.c == 0 then
+                for _, b in ipairs(AZM.Boats or {}) do
+                    MySQL.insert.await('INSERT INTO azm_boat_prices (shop_id, model, label, price, min_price, max_price) VALUES (?,?,?,?,?,?)',
+                        { s.id, b.model, b.label, b.price or 0, 0, 2147483647 })
+                end
             end
         end
     end
@@ -239,10 +256,24 @@ local function isSpawnClear(spawn)
 end
 
 local function chooseFreeSpawn(shop)
-    -- إذا لم توجد سباونات، ارجع nil
-    if not shop or not shop.spawns or #shop.spawns == 0 then return nil end
-    -- نُعيد أول سباون صالح. لو ترغب بتحسين لاحق (client-side check) أخبرني.
-    return shop.spawns[1]
+    -- إذا لم توجد سباونات في الكاش، حاول استخدام القيم الافتراضية من AZM.Shops (config)
+    if shop and shop.spawns and #shop.spawns > 0 then
+        -- ببساطة نُعيد أول سباون. يمكن توسيع لاحقاً لاختيار أقرب سباون فارغ بالتحقق client-side.
+        local s = shop.spawns[1]
+        return { x = s.x, y = s.y, z = s.z, h = s.h }
+    end
+
+    -- fallback: حاول إيجاد تعريف في AZM.Shops (config.lua)
+    if AZM and AZM.Shops then
+        for _, s in ipairs(AZM.Shops) do
+            if s.id == shop.id and s.spawns and #s.spawns > 0 then
+                local sp = s.spawns[1]
+                return { x = sp.x, y = sp.y, z = sp.z, h = sp.h }
+            end
+        end
+    end
+
+    return nil
 end
 
 local function randPlate()

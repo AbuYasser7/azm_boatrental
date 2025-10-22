@@ -59,10 +59,10 @@ local function notify(arg)
     end
 end
 
--- Help text (E prompt)
+-- Help text (E prompt) - use AddTextComponentSubstringPlayerName for proper Unicode display
 local function showHelp(msg)
-    AddTextEntry('AZM_BOATS_HELP', msg)
-    BeginTextCommandDisplayHelp('AZM_BOATS_HELP')
+    BeginTextCommandDisplayHelp('STRING')
+    AddTextComponentSubstringPlayerName(tostring(msg))
     EndTextCommandDisplayHelp(0, false, true, -1)
 end
 
