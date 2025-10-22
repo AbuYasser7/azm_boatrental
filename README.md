@@ -45,11 +45,17 @@ Superadmins can manage ownership, platform fees, and financial settings.
 ```
 azm_boatrental/
 ├─ fxmanifest.lua
-├─ config.lua
-├─ client.lua
-├─ server.lua
-├─ sql.sql
-└─ README.md
+├─ LICENSE
+├─ README.md
+├─ .gitignore
+├─ sql/
+│  └─ sql.sql
+├─ shared/
+│  └─ config.lua
+├─ client/
+│  └─ main.lua
+└─ server/
+   └─ main.lua
 ```
 
 ---
@@ -57,7 +63,7 @@ azm_boatrental/
 ## ⚙️ Installation
 1. Ensure dependencies are installed and running:
    - `ox_lib`, `ox_target`, `oxmysql`, and **new** `es_extended`
-2. Import `sql.sql` into your database.
+2. Import    ```bash /sql/sql.sql``` into your database.
 3. Place the folder in your resources and add to your `server.cfg`:
    ```bash
    ensure ox_lib
