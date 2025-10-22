@@ -82,8 +82,8 @@ VALUES
  -1600.08, -1176.98, 1.51);
 
 INSERT INTO `azm_boat_prices` (`shop_id`, `model`, `label`, `price`, `min_price`, `max_price`) VALUES
-(1, 'dinghy2', 'Dinghy', 300, 200, 800),
-(1, 'seashark', 'Seashark', 250, 150, 700),
-(1, 'speeder', 'Speeder', 600, 400, 1000),
-(1, 'toro', 'Toro', 800, 500, 1500),
-(1, 'jetmax', 'Jetmax', 900, 600, 2000);
+(1, 'dinghy2', 'قارب صغير', 3000, 2000, 8000),
+(1, 'seashark', 'جيت سكي', 4000, 2000, 9000),
+(1, 'speeder', 'سبيدر', 6000, 4000, 10000),
+(1, 'toro', 'تورو', 8000, 5000, 12000),
+(1, 'jetmax', 'جيتماكس', 10000, 6000, 15000);

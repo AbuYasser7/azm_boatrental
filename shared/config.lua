@@ -35,11 +35,11 @@ AZM.Logs = {
 
 -- =============== Boat Catalog ===============
 AZM.Boats = {
-    { model = 'dinghy2',  label = 'Dinghy',  price = 300 },
-    { model = 'seashark', label = 'Seashark',price = 250 },
-    { model = 'speeder',  label = 'Speeder', price = 600 },
-    { model = 'toro',     label = 'Toro',    price = 800 },
-    { model = 'jetmax',   label = 'Jetmax',  price = 900 },
+    { model = 'dinghy2',  label = 'قارب صغير',     price = 3000 },
+    { model = 'seashark', label = 'جيت سكي',        price = 4000 },
+    { model = 'speeder',  label = 'سبيدر',          price = 6000 },
+    { model = 'toro',     label = 'تورو',           price = 8000 },
+    { model = 'jetmax',   label = 'جيتماكس',        price = 10000 },
 }
 
 -- =============== Boat Shops ===============
@@ -129,20 +129,24 @@ AZM.Locales = {
 
     ['ar'] = {
         ['ui.title']        = 'تأجير القوارب',
-        ['ui.blip_name']    = 'تأجير القوارب',
+        ['ui.blip_name']    = 'نقطة تأجير القوارب',
+        ['ui.open_shop']    = 'فتح متجر: %s',
         ['ui.owner_panel']  = 'لوحة المالك',
-        ['ui.return_boat']  = 'إرجاع القارب المستأجر',
+        ['ui.return_boat']  = 'إرجاع القارب',
         ['ui.amount']       = 'المبلغ',
         ['ui.new_price']    = 'السعر الجديد',
-        -- تلميحات زر E
-        ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ لاستئجار قارب',
-        ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ لفتح لوحة المالك',
-        ['hint.press_e_return'] = 'اضغط ~INPUT_PICKUP~ لإرجاع القارب',
 
+        -- تلميحات (مفاتيح E) — بالعربية فقط (بدون أي حرف إنجليزي)
+        ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ للاستئجار',
+        ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ للوصول إلى لوحة المالك',
+        ['hint.press_e_return'] = 'اضغط ~INPUT_PICKUP~ لإرجاع القارب هنا',
+
+        -- إشعارات
         ['notif.enjoy']     = 'استمتع برحلتك على %s!',
         ['notif.destroyed'] = 'تم تدمير القارب، يمكنك الاستئجار مرة أخرى.',
         ['notif.returned']  = 'تم إرجاع القارب بنجاح!',
 
+        -- أخطاء وإرشادات
         ['error.cannot_rent']        = 'لا يمكنك الاستئجار الآن.',
         ['error.no_catalog']         = 'لا توجد قوارب متاحة حالياً.',
         ['error.no_catalog_shop']    = 'لا توجد قوارب مخصصة لهذا المتجر.',
@@ -153,6 +157,7 @@ AZM.Locales = {
         ['error.spawn_failed']       = 'حدث خطأ أثناء إنشاء القارب.',
         ['error.no_active_rental']   = 'ليس لديك أي قارب مستأجر حالياً.',
 
+        -- قوائم وواجهات
         ['menu.boats_title']         = '%s — القوارب المتاحة',
         ['menu.owner_title']         = 'لوحة المالك — %s',
         ['menu.withdraw_custom']     = 'سحب (مخصص)',
@@ -161,6 +166,7 @@ AZM.Locales = {
         ['menu.refresh']             = 'تحديث',
         ['menu.set_price_for']       = 'تحديد سعر %s',
 
+        -- تفاصيل المالك
         ['owner.shop']           = 'المتجر: %s',
         ['owner.balance']        = 'الرصيد: $%d',
         ['owner.platform_fee']   = 'نسبة المنصة: %d%%',

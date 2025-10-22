@@ -18,6 +18,9 @@ local ShopsCache = {}
 local ActiveRentals = {}            -- identifier -> ActiveRental
 local AbandonedTimes = {}           -- identifier -> last abandoned time (os.time)
 
+-- خزنة موارد المدينة (تُجمع فيها حصة المدينة من كل إيجار)
+local PlatformVault = 0
+
 -- ====== Config flags ======
 local REFUND_DEPOSIT_ON_RETURN   = true
 local FORFEIT_DEPOSIT_ON_DESTROY = true
@@ -74,7 +77,8 @@ local function notify(src, msg, typ)
             progressBar = true
         })
     else
-        TriggerClientEvent('ox_lib:notify', src, { title = 'Boat Rental', description = msg, type = typ })
+        local title = (AZM and AZM.Locales and AZM.Locales[AZM.Locale] and AZM.Locales[AZM.Locale]['ui.title']) or 'Boat Rental'
+        TriggerClientEvent('ox_lib:notify', src, { title = title, description = msg, type = typ })
     end
 end
 
@@ -173,6 +177,20 @@ RegisterNetEvent('azm_boats:clientReady', function()
     TriggerClientEvent('azm_boats:setupShops', src, ShopsCache)
 end)
 
+-- ====== Ownership check callback (يحدد إذا اللاعب مالك الفرع أو سوبرأدمن) =====
+ESX.RegisterServerCallback('azm_boats:isOwner', function(src, cb, shopId)
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return cb(false) end
+    local identifier = iden(xPlayer)
+    local shop = ShopsCache[shopId]
+    if not shop then return cb(false) end
+    if shop.owner_identifier == identifier or isSuperAdmin(xPlayer) then
+        cb(true)
+    else
+        cb(false)
+    end
+end)
+
 -- ====== Cooldown Logic ======
 local function canPlayerRent(identifier)
     if ActiveRentals[identifier] then
@@ -191,7 +209,7 @@ local function canPlayerRent(identifier)
     return true
 end
 
--- ====== Rental Core ======
+-- ====== Rental Core (تعديل: تقسيم السعر بين مالك المتجر وحصة المدينة) =====
 -- فحص خلوّ السباون (OneSync)
 local function isSpawnClear(spawn)
     local vehicles = GetAllVehicles() or {}
@@ -292,14 +310,20 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
         return
     end
 
-    -- take money
+    -- take money (price + deposit)
     xPlayer.removeMoney(total)
 
-    -- split (price only)
-    local platform_amount = math.floor(price * (platformPct/100))
-    local owner_amount = price - platform_amount
-    MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { platform_amount + owner_amount, shopId })
-    shop.balance = (shop.balance or 0) + platform_amount + owner_amount
+    -- تقسيم السعر: platformPct = نسبة خدمة المدينة (مثال: 50%)
+    -- owner_share = السعر * (100 - platformPct) / 100
+    local owner_share = math.floor(price * (100 - platformPct) / 100)
+    local platform_share = price - owner_share
+
+    -- نضيف حصة المالك إلى رصيد المتجر
+    MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { owner_share, shopId })
+    shop.balance = (shop.balance or 0) + owner_share
+
+    -- نحفظ حصة المدينة داخل الخزنة العامة (قابلة للسحب بأمر سوبرأدمن)
+    PlatformVault = PlatformVault + platform_share
 
     local plate = randPlate()
 
@@ -314,10 +338,22 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     TriggerClientEvent('azm_boats:spawnApproved', src, shopId, model, spawn, plate)
     notify(src, ('Charged $%d (incl. $%d deposit).'):format(total, deposit), 'success')
 
-    sendLog("🛥️ Boat Rented", ("Player: **%s** (%s)\nShop: **%s** (ID %d)\nModel: **%s**\nPrice: **$%d** | Deposit: **$%d** | Platform%%: **%d%%**\nPlate: **%s**")
-        :format(xPlayer.getName(), identifier, shop.name, shopId, tostring(model), price, deposit, platformPct, plate), COLOR_SUCCESS)
+    sendLog("🛥️ Boat Rented (Split)", ("Player: **%s** (%s)\nShop: **%s** (ID %d)\nModel: **%s**\nPrice: **$%d** | OwnerShare: **$%d** | CityShare: **$%d** | Platform%%: **%d%%**\nPlate: **%s**")
+        :format(xPlayer.getName(), identifier, shop.name, shopId, tostring(model), price, owner_share, platform_share, platformPct, plate), COLOR_SUCCESS)
 end)
 
+-- ====== أمر سوبرأدمن لسحب حصة المدينة من الخزنة =====
+ESX.RegisterCommand('boatshop_claimplatform', {'superadmin'}, function(xPlayer, args, showError)
+    if not isSuperAdmin(xPlayer) then return end
+    local amt = PlatformVault or 0
+    if amt <= 0 then return xPlayer.showNotification('لا توجد أموال في خزنة المدينة.') end
+    PlatformVault = 0
+    xPlayer.addMoney(amt)
+    xPlayer.showNotification(('تم سحب $%d من خزنة المدينة'):format(amt))
+    sendLog("🏛️ PlatformVault Claimed", ("By Admin: **%s** | Amount: **$%d**"):format(xPlayer.getName(), amt), COLOR_INFO)
+end, true, { help = 'Claim platform vault', arguments = {} })
+
+-- ====== Rental Return / Destruction ======
 RegisterNetEvent('azm_boats:returnBoat', function()
     local src      = source
     local xPlayer  = ESX.GetPlayerFromId(src)
