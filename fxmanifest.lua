@@ -4,7 +4,7 @@ game 'gta5'
 name 'azm_boatrental'
 author 'abuyasser'
 description 'Al Azm Boat Rental'
-version '1.0.0'
+version '1.1.0'
 lua54 'yes'
 
 shared_scripts {
@@ -24,7 +24,5 @@ server_scripts {
 dependencies {
     'es_extended',
     'oxmysql',
-    'ox_lib',
-    'ox_target'
+    'ox_lib'
 }
-

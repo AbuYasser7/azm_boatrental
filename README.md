@@ -137,3 +137,55 @@ By **abuyasser** — [discord.gg/azm](https://discord.gg/azm)
 
 © 2025 All Rights Reserved  
 Distributed under the **MIT License**.
+
+---
+
+# ⚓ Al Azm County — Advanced Boat Rental (ESX)
+
+Premium, sale-ready FiveM ESX boat rental resource with:
+- كامل بالـعربية (RTL) ودعم متعدد اللغات (اختيار Arabic = ولا حرف إنجليزي في النصوص).
+- نظام تملك فروع متعدد، خزائن لكل فرع، ونسبة خدمة مدينة قابلة للضبط.
+- قسمة الإيراد: المدير يحدد نسبة المنصة (مثال: 50% → المالك يحصل على 50%).
+- نظام ودائع استرجاع/مصادرة حسب الإعداد.
+- تحكم سوبرأدمن كامل (أوامر لإدارة الملكية، الرسوم، السحب).
+- تفاعل زر E موحّد (بدون ox_target / alt).
+- واجهات قائمة بسيطة عبر ox_lib (context, notify).
+- دعم ESX و oxmysql و ox_lib.
+
+## الميزات المميزة للبيع
+- واجهة عربية كاملة (RTL) وتوضيحات E واضحة.
+- إعدادات قابلة للتخصيص بالكامل عبر shared/config.lua.
+- تخزين مالي آمن لكل فرع + خزنة منصة عامة قابل للسحب من قبل السوبرأدمن.
+- Seed افتراضي للـ SQL مع أسعار 3000..10000.
+- لوجز للـ Discord (webhook) قابلة للتفعيل لتعقب العمليات.
+
+## المتطلبات
+- es_extended (ESX)
+- oxmysql
+- ox_lib
+(لا يعتمد على ox_target بعد الآن — تفاعل عبر زر E)
+
+## التثبيت
+1. ضع المجلد `azm_boatrental` داخل resources.
+2. استورد `sql/sql.sql` إلى قاعدة بياناتك (MySQL).
+3. أضف بالمكان المناسب في server.cfg:
+   ensure azm_boatrental
+4. أعد تشغيل السيرفر أو المورد: restart azm_boatrental
+
+## الأوامر الأساسية (مثال)
+- /boatshop_setowner <shopId> <serverId> <days>  — سوبرأدمن: تعيين مالك.
+- /boatshop_setfee <shopId> <feePct>            — سوبرأدمن: ضبط نسبة المنصة.
+- /boatshop_deposit <shopId> <amount>           — مالك/سوبرأدمن: إيداع للخزنة.
+- /boatshop_withdraw <shopId> <amount>          — مالك/سوبرأدمن: سحب من الخزنة.
+
+## دعم و ترخيص
+- ترخيص: MIT
+- دعم مباشر عبر Discord: discord.gg/azm
+- سياسة أمان: اقرأ SECURITY.md
+
+## ملاحظات للمشغل
+- تأكد من تهيئة `AZM.Locale = 'ar'` في `shared/config.lua` للحصول على واجهة عربية كاملة.
+- إن رغبت بتخزين PlatformVault في قاعدة البيانات بدلاً من ذاكرة السيرفر أخطُرني لأضفه كتحديث.
+
+Changelog:
+- 1.1.0 — تنظيف client.lua، إزالة ox_target، تحسين README، إصلاح أخطاء التشغيل.

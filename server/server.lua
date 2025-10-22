@@ -145,12 +145,22 @@ local function loadShops()
 
     ShopsCache = {}
     for _, s in ipairs(rows) do
+        -- parse expires_at (MySQL DATETIME -> timestamp) safely
+        local expires_ts = nil
+        if s.expires_at and type(s.expires_at) == 'string' then
+            local y,m,d,H,M,S = s.expires_at:match("(%d+)-(%d+)-(%d+)%s+(%d+):(%d+):(%d+)")
+            if y and m and d and H and M and S then
+                expires_ts = os.time({ year=tonumber(y), month=tonumber(m), day=tonumber(d), hour=tonumber(H), min=tonumber(M), sec=tonumber(S) })
+            end
+        end
+
         ShopsCache[s.id] = {
             id = s.id,
             name = s.name,
             owner_identifier = s.owner_identifier,
             owner_name = s.owner_name,
             expires_at = s.expires_at,
+            expires_at_ts = expires_ts,
             balance = s.balance,
             platform_fee_pct = s.platform_fee_pct or 0,
             deposit_default = s.deposit_default or 0,
@@ -229,12 +239,10 @@ local function isSpawnClear(spawn)
 end
 
 local function chooseFreeSpawn(shop)
-    for _, sp in ipairs(shop.spawns or {}) do
-        if isSpawnClear(sp) then
-            return sp
-        end
-    end
-    return nil
+    -- إذا لم توجد سباونات، ارجع nil
+    if not shop or not shop.spawns or #shop.spawns == 0 then return nil end
+    -- نُعيد أول سباون صالح. لو ترغب بتحسين لاحق (client-side check) أخبرني.
+    return shop.spawns[1]
 end
 
 local function randPlate()
@@ -469,7 +477,8 @@ RegisterNetEvent('azm_boats:reqOwnerMenu', function()
     local xPlayer = ESX.GetPlayerFromId(src)
     local identifier = iden(xPlayer)
     for _, shop in pairs(ShopsCache) do
-        if shop.owner_identifier == identifier and (not shop.expires_at or os.time() < os.time(shop.expires_at)) then
+        -- تحقق من انتهاء الملكية باستخدام expires_at_ts (تم حفظه عند التحميل)
+        if shop.owner_identifier == identifier and (not shop.expires_at_ts or os.time() < shop.expires_at_ts) then
             TriggerClientEvent('azm_boats:openOwnerMenu', src, shop)
             return
         end

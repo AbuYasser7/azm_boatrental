@@ -1,4 +1,4 @@
--- azm_boatrental/client.lua
+-- azm_boatrental/client.lua (CLEANED)
 -- Built for Al Azm County by abuyasser (discord.gg/azm)
 
 local ESX = exports['es_extended']:getSharedObject()
@@ -27,139 +27,7 @@ local function notify(arg)
 
     if type(arg) == 'string' then
         text = arg
-        typ = 'inform'        -- ...existing code...
-        
-        local ShopsCache = {}
-        local ActiveRentals = {}            -- identifier -> ActiveRental
-        local AbandonedTimes = {}           -- identifier -> last abandoned time (os.time)
-        
-        -- خزنة موارد المدينة (تُجمع فيها حصة المدينة من كل إيجار)
-        local PlatformVault = 0
-        
-        -- ====== Config flags ======
-        local REFUND_DEPOSIT_ON_RETURN   = true
-        local FORFEIT_DEPOSIT_ON_DESTROY = true
-        
-        -- ...existing code...
-        
-        -- ====== Client Sync ======
-        RegisterNetEvent('azm_boats:clientReady', function()
-            local src = source
-            TriggerClientEvent('azm_boats:setupShops', src, ShopsCache)
-        end)
-        
-        -- ====== Ownership check callback (يحدد إذا اللاعب مالك الفرع أو سوبرأدمن) =====
-        ESX.RegisterServerCallback('azm_boats:isOwner', function(src, cb, shopId)
-            local xPlayer = ESX.GetPlayerFromId(src)
-            if not xPlayer then return cb(false) end
-            local identifier = iden(xPlayer)
-            local shop = ShopsCache[shopId]
-            if not shop then return cb(false) end
-            if shop.owner_identifier == identifier or isSuperAdmin(xPlayer) then
-                cb(true)
-            else
-                cb(false)
-            end
-        end)
-        
-        -- ====== Rental Core (تعديل: تقسيم السعر بين مالك المتجر وحصة المدينة) =====
-        RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
-            local src = source
-            local xPlayer = ESX.GetPlayerFromId(src)
-            if not xPlayer then return end
-            local identifier = iden(xPlayer)
-            local shop = ShopsCache[shopId]
-            if not shop then return end
-        
-            local ok, msg = canPlayerRent(identifier)
-            if not ok then
-                notify(src, msg, 'error')
-                sendLog("⛔ Rent Blocked", ("Player: **%s** (%s)\nReason: %s"):format(xPlayer.getName(), identifier, msg), COLOR_WARN)
-                return
-            end
-        
-            local priceInfo = shop.prices[model]
-            if not priceInfo then
-                notify(src, 'Boat unavailable.', 'error')
-                sendLog("❌ Boat Unavailable", ("Player: **%s** (%s)\nShop: **%s**\nModel: **%s**"):format(xPlayer.getName(), identifier, shop.name, tostring(model)), COLOR_ERROR)
-                return
-            end
-        
-            local price = priceInfo.price or 0
-            local minp  = priceInfo.min_price or 0
-            local maxp  = priceInfo.max_price or 2147483647
-            if price < minp or price > maxp then
-                notify(src, ('Price out of allowed range (%d - %d).'):format(minp, maxp), 'error')
-                sendLog("⚠️ Price Out of Range", ("Shop: **%s**\nModel: **%s**\nPrice: **%d** (Allowed: %d - %d)\nBy: **%s** (%s)")
-                    :format(shop.name, tostring(model), price, minp, maxp, xPlayer.getName(), identifier), COLOR_WARN)
-                return
-            end
-        
-            local deposit = shop.deposit_default or 0
-            local platformPct = shop.platform_fee_pct or 0
-            if deposit < 0 then deposit = 0 end
-            if platformPct < 0 then platformPct = 0 end
-            if platformPct > 100 then platformPct = 100 end
-        
-            local total = price + deposit
-            if xPlayer.getMoney() < total then
-                notify(src, ('Need $%d (price+deposit).'):format(total), 'error')
-                sendLog("💸 Insufficient Cash", ("Player: **%s** (%s)\nNeeded: **$%d**\nHave: **$%d**")
-                    :format(xPlayer.getName(), identifier, total, xPlayer.getMoney()), COLOR_WARN)
-                return
-            end
-        
-            local spawn = chooseFreeSpawn(shop)
-            if not spawn then
-                notify(src, 'No spawn points available.', 'error')
-                sendLog("🚫 No Spawn", ("Shop: **%s** | Requested by **%s** (%s)"):format(shop.name, xPlayer.getName(), identifier), COLOR_ERROR)
-                return
-            end
-        
-            -- take money (price + deposit)
-            xPlayer.removeMoney(total)
-        
-            -- تقسيم السعر: platformPct = نسبة خدمة المدينة (مثال: 50%)
-            -- owner_share = السعر * (100 - platformPct) / 100
-            local owner_share = math.floor(price * (100 - platformPct) / 100)
-            local platform_share = price - owner_share
-        
-            -- نضيف حصة المالك إلى رصيد المتجر
-            MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { owner_share, shopId })
-            shop.balance = (shop.balance or 0) + owner_share
-        
-            -- نحفظ حصة المدينة داخل الخزنة العامة (قابلة للسحب بأمر سوبرأدمن)
-            PlatformVault = PlatformVault + platform_share
-        
-            local plate = randPlate()
-        
-            -- persist rental
-            MySQL.insert.await([[
-                INSERT INTO azm_boat_rentals (identifier, shop_id, model, plate, rented_at, deposit_taken, status)
-                VALUES (?,?,?,?,NOW(),?,?)
-            ]], { identifier, shopId, model, plate, deposit, 'active' })
-        
-            ActiveRentals[identifier] = { shop_id = shopId, identifier = identifier, plate = plate, started = os.time() }
-        
-            TriggerClientEvent('azm_boats:spawnApproved', src, shopId, model, spawn, plate)
-            notify(src, ('Charged $%d (incl. $%d deposit).'):format(total, deposit), 'success')
-        
-            sendLog("🛥️ Boat Rented (Split)", ("Player: **%s** (%s)\nShop: **%s** (ID %d)\nModel: **%s**\nPrice: **$%d** | OwnerShare: **$%d** | CityShare: **$%d** | Platform%%: **%d%%**\nPlate: **%s**")
-                :format(xPlayer.getName(), identifier, shop.name, shopId, tostring(model), price, owner_share, platform_share, platformPct, plate), COLOR_SUCCESS)
-        end)
-        
-        -- ====== أمر سوبرأدمن لسحب حصة المدينة من الخزنة =====
-        ESX.RegisterCommand('boatshop_claimplatform', {'superadmin'}, function(xPlayer, args, showError)
-            if not isSuperAdmin(xPlayer) then return end
-            local amt = PlatformVault or 0
-            if amt <= 0 then return xPlayer.showNotification('لا توجد أموال في خزنة المدينة.') end
-            PlatformVault = 0
-            xPlayer.addMoney(amt)
-            xPlayer.showNotification(('تم سحب $%d من خزنة المدينة'):format(amt))
-            sendLog("🏛️ PlatformVault Claimed", ("By Admin: **%s** | Amount: **$%d**"):format(xPlayer.getName(), amt), COLOR_INFO)
-        end, true, { help = 'Claim platform vault', arguments = {} })
-        
-        -- ...existing code...
+        typ = 'inform'
     else
         text = arg.description or arg.text or ''
         typ  = arg.type or 'inform'
@@ -267,13 +135,12 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
             SetBlockingOfNonTemporaryEvents(ped, true)
         end
 
-        -- ===== تَعديل: إزالة ox_target والاعتماد على زر E فقط =====
-        -- نتحقق مع السرفر هل اللاعب مالك هذا الفرع أو أدمين عالي الصلاحية
+        -- owner check cached
         ESX.TriggerServerCallback('azm_boats:isOwner', function(isOwner)
             s._isOwner = isOwner
         end, s.id)
 
-        -- منطقة الإرجاع: علامة مرئية + مساعدة E
+        -- Return zone: visibility marker + help E
         if s.returnZone then
             CreateThread(function()
                 local markerVec = vector3(s.returnZone.x, s.returnZone.y, s.returnZone.z)
@@ -300,7 +167,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
             end)
         end
 
-        -- تفاعل زر E الموحد: إذا كان المالك نعرض قائمة تحوي "استئجار" و"لوحة المالك" و"إرجاع"
+        -- E interaction (owner sees owner menu)
         CreateThread(function()
             local key = (AZM and AZM.InteractKey) or 38 -- 38 = E
             local menuVec = vector3(s.menu.x, s.menu.y, s.menu.z)
@@ -310,7 +177,6 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 local pos = GetEntityCoords(ped)
                 if #(pos - menuVec) <= 2.0 then
                     if s._isOwner then
-                        -- نعرض رسالة عامة (المالك يرى الخيارات عند الضغط)
                         showHelp(L('hint.press_e_owner'))
                         if IsControlJustPressed(0, key) then
                             local opts = {
@@ -382,7 +248,7 @@ function openShopMenu(shopId)
                 onSelect = function()
                     TriggerServerEvent('azm_boats:requestRent', shopId, b.model)
                 end
-            end
+            }
         end
 
         lib.registerContext({
@@ -412,7 +278,7 @@ end
 -- Owner Panel (server checks ownership then sends us the shop object)
 -- =========================
 RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
-    if not shop then return notify(L('error.owner_panel')) end
+    if not shop then return notify({ description = L('error.owner_panel'), type = 'error' }) end
 
     local opts = {
         { title = L('owner.shop', shop.name or ('#'..shop.id)), icon = 'store' },
