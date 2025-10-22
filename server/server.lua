@@ -78,6 +78,45 @@ local function isSuperAdmin(xPlayer)
     return false
 end
 
+-- ====== Helper: get player identifier safely ======
+-- Accepts: server id (number), ESX xPlayer object, or identifier string -> returns identifier string or nil
+local function iden(playerOrSource)
+    if not playerOrSource then return nil end
+
+    -- if given identifier string already
+    if type(playerOrSource) == 'string' then
+        return playerOrSource
+    end
+
+    -- if given numeric server id
+    if type(playerOrSource) == 'number' then
+        local ids = GetPlayerIdentifiers(playerOrSource)
+        if ids and #ids > 0 then
+            return ids[1]
+        end
+        return nil
+    end
+
+    -- if given ESX player object
+    if type(playerOrSource) == 'table' then
+        -- common properties in different ESX versions
+        if playerOrSource.identifier and type(playerOrSource.identifier) == 'string' then
+            return playerOrSource.identifier
+        end
+        if playerOrSource.getIdentifier and type(playerOrSource.getIdentifier) == 'function' then
+            local ok, id = pcall(playerOrSource.getIdentifier, playerOrSource)
+            if ok and type(id) == 'string' then return id end
+        end
+        -- sometimes ESX passes player.source in object
+        if playerOrSource.source and type(playerOrSource.source) == 'number' then
+            local ids = GetPlayerIdentifiers(playerOrSource.source)
+            if ids and #ids > 0 then return ids[1] end
+        end
+    end
+
+    return nil
+end
+
 -- ====== DB Loading ======
 local function loadShops()
     local rows = MySQL.query.await('SELECT * FROM azm_boat_shops') or {}
