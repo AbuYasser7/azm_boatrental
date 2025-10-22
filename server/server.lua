@@ -36,137 +36,78 @@ local COLOR_ERROR   = 15548997
 
 -- ====== Webhook Helper ======
 local function sendLog(title, message, color)
-    if not AZM or not AZM.Logs or not AZM.Webhooks then return end
-    if not AZM.Logs.enable then return end
-    local url = AZM.Webhooks.main
-    if not url or url == "" then return end
+    if not AZM or not AZM.Logs or not AZM.Logs.enable then return end
+    local webhook = AZM.Webhooks and AZM.Webhooks.main
+    if not webhook then return end
 
-    local embed = { {
-        title = title or "Log",
-        description = message or "",
-        color = color or COLOR_INFO,
-        footer = { text = os.date("📅 %Y-%m-%d | 🕒 %H:%M:%S") }
-    } }
-
-    PerformHttpRequest(url, function() end, "POST", json.encode({
-        username = AZM.Logs.username or "🚤 Al Azm Boat Rental | Logs",
-        avatar_url = AZM.Logs.avatar or "",
-        embeds = embed
-    }), { ["Content-Type"] = "application/json" })
+    local payload = {
+        username = AZM.Logs.username or "azm_boatrental",
+        avatar_url = AZM.Logs.avatar,
+        embeds = {{
+            title = title,
+            description = message,
+            color = color or COLOR_INFO,
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }}
+    }
+    PerformHttpRequest(webhook, function() end, 'POST', json.encode(payload), { ['Content-Type'] = 'application/json' })
 end
 
 -- ====== Notify Helper (يحترم AZM.Notify) ======
 local function notify(src, msg, typ)
-    typ = typ or 'inform'
-    local system = (AZM and AZM.Notify) or 'ox'  -- 'moh' | 'pnotify' | 'ox'
-    if system == 'moh' then
-        TriggerClientEvent('moh_notify:SendNotification', src, {
-            type = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
-            text = msg,
-            theme = "gta",
-            layout = "topRight",
-            timeout = 5000,
-            progressBar = true
-        })
-    elseif system == 'pnotify' then
-        TriggerClientEvent('pNotify:SendNotification', src, {
-            text = msg,
-            type = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
-            layout = "topRight",
-            timeout = 5000,
-            progressBar = true
-        })
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if xPlayer and xPlayer.showNotification then
+        xPlayer.showNotification(msg)
     else
-        local title = (AZM and AZM.Locales and AZM.Locales[AZM.Locale] and AZM.Locales[AZM.Locale]['ui.title']) or 'Boat Rental'
-        TriggerClientEvent('ox_lib:notify', src, { title = title, description = msg, type = typ })
+        TriggerClientEvent('chat:addMessage', src, { args = { msg } })
     end
 end
 
 -- ====== Helpers ======
-local function iden(xPlayer)
-    return xPlayer and (xPlayer.getIdentifier and xPlayer.getIdentifier() or xPlayer.identifier) or nil
-end
-
 local function isSuperAdmin(xPlayer)
     if not xPlayer then return false end
-    local g = xPlayer.getGroup and xPlayer.getGroup() or 'user'
-    for _, v in ipairs(AZM and AZM.Groups and AZM.Groups.SuperAdmin or {'superadmin','admin'}) do
-        if v == g then return true end
-    end
-    return false
-end
-
--- ====== DB Seeding / Loading ======
-local function ensureSeeds()
-    for _, s in ipairs(AZM.Shops) do
-        local exist = MySQL.single.await('SELECT id FROM azm_boat_shops WHERE id = ?', { s.id })
-        if not exist then
-            -- موجود سابقاً كما في ملفك: دمج الإدراج الكامل
-            MySQL.insert.await([[
-                INSERT INTO azm_boat_shops
-                (id, name, owner_identifier, owner_name, expires_at, balance, platform_fee_pct, deposit_default,
-                 ped_x, ped_y, ped_z, ped_h, menu_x, menu_y, menu_z, menu_h, blip_x, blip_y, blip_z)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ]], { s.id, s.name, nil, nil, nil, 0, 0, 0,
-                   s.ped.x, s.ped.y, s.ped.z, s.ped.heading,
-                   s.menu.x, s.menu.y, s.menu.z, s.menu.heading,
-                   s.blip.x, s.blip.y, s.blip.z })
-            for _, sp in ipairs(s.spawns or {}) do
-                MySQL.insert.await('INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (?,?,?,?,?)', { s.id, sp.x, sp.y, sp.z, sp.h })
-            end
-            for _, b in ipairs(AZM.Boats or {}) do
-                MySQL.insert.await('INSERT INTO azm_boat_prices (shop_id, model, label, price, min_price, max_price) VALUES (?,?,?,?,?,?)',
-                    { s.id, b.model, b.label, b.price or 0, 0, 2147483647 })
-            end
-        else
-            -- إذا المتجر موجود لكن لا توجد نقاط سباون في DB أدخلها
-            local cnt = MySQL.single.await('SELECT COUNT(*) as c FROM azm_boat_shop_spawns WHERE shop_id = ?', { s.id })
-            if cnt and cnt.c == 0 then
-                for _, sp in ipairs(s.spawns or {}) do
-                    MySQL.insert.await('INSERT INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (?,?,?,?,?)', { s.id, sp.x, sp.y, sp.z, sp.h })
-                end
-            end
-            -- ونفس الشيء لأسعار القوارب
-            local pcnt = MySQL.single.await('SELECT COUNT(*) as c FROM azm_boat_prices WHERE shop_id = ?', { s.id })
-            if pcnt and pcnt.c == 0 then
-                for _, b in ipairs(AZM.Boats or {}) do
-                    MySQL.insert.await('INSERT INTO azm_boat_prices (shop_id, model, label, price, min_price, max_price) VALUES (?,?,?,?,?,?)',
-                        { s.id, b.model, b.label, b.price or 0, 0, 2147483647 })
-                end
+    if xPlayer.getGroup then
+        local grp = xPlayer.getGroup()
+        if grp and AZM and AZM.Groups and AZM.Groups.SuperAdmin then
+            for _, g in ipairs(AZM.Groups.SuperAdmin) do
+                if grp == g then return true end
             end
         end
     end
+    -- fallback: try xPlayer.getPermissions or groups table if exists
+    return false
 end
 
+-- ====== DB Loading ======
 local function loadShops()
-    local rows   = MySQL.query.await('SELECT * FROM azm_boat_shops')
-    local prices = MySQL.query.await('SELECT * FROM azm_boat_prices')
-    local spawns = MySQL.query.await('SELECT * FROM azm_boat_shop_spawns')
+    local rows = MySQL.query.await('SELECT * FROM azm_boat_shops') or {}
+    local prices = MySQL.query.await('SELECT * FROM azm_boat_prices') or {}
+    local spawns = MySQL.query.await('SELECT * FROM azm_boat_shop_spawns') or {}
 
     local priceMap = {}
     for _, p in ipairs(prices) do
         priceMap[p.shop_id] = priceMap[p.shop_id] or {}
         priceMap[p.shop_id][p.model] = {
-            label     = p.label,
-            price     = p.price,
-            min_price = p.min_price or 0,
-            max_price = p.max_price or 2147483647
+            label = p.label,
+            price = tonumber(p.price) or 0,
+            min_price = tonumber(p.min_price) or 0,
+            max_price = tonumber(p.max_price) or 2147483647
         }
     end
 
     local spawnMap = {}
     for _, sp in ipairs(spawns) do
         spawnMap[sp.shop_id] = spawnMap[sp.shop_id] or {}
-        spawnMap[sp.shop_id][#spawnMap[sp.shop_id]+1] = {x=sp.x,y=sp.y,z=sp.z,h=sp.h}
+        spawnMap[sp.shop_id][#spawnMap[sp.shop_id]+1] = { x = tonumber(sp.x), y = tonumber(sp.y), z = tonumber(sp.z), h = tonumber(sp.h) }
     end
 
     ShopsCache = {}
     for _, s in ipairs(rows) do
-        -- parse expires_at (MySQL DATETIME -> timestamp) safely
+        -- parse expires_at if exists
         local expires_ts = nil
         if s.expires_at and type(s.expires_at) == 'string' then
             local y,m,d,H,M,S = s.expires_at:match("(%d+)-(%d+)-(%d+)%s+(%d+):(%d+):(%d+)")
-            if y and m and d and H and M and S then
+            if y then
                 expires_ts = os.time({ year=tonumber(y), month=tonumber(m), day=tonumber(d), hour=tonumber(H), min=tonumber(M), sec=tonumber(S) })
             end
         end
@@ -178,22 +119,25 @@ local function loadShops()
             owner_name = s.owner_name,
             expires_at = s.expires_at,
             expires_at_ts = expires_ts,
-            balance = s.balance,
-            platform_fee_pct = s.platform_fee_pct or 0,
-            deposit_default = s.deposit_default or 0,
-            blip = {x=s.blip_x, y=s.blip_y, z=s.blip_z, sprite=455, colour=5, scale=0.8},
-            ped  = {x=s.ped_x,  y=s.ped_y,  z=s.ped_z,  heading=s.ped_h,  model='a_m_y_surfer_01'},
-            menu = {x=s.menu_x, y=s.menu_y, z=s.menu_z, heading=s.menu_h},
-            returnZone = {},
+            balance = tonumber(s.balance) or 0,
+            platform_fee_pct = tonumber(s.platform_fee_pct) or 0,
+            deposit_default = tonumber(s.deposit_default) or 0,
+            blip = { x = tonumber(s.blip_x) or 0, y = tonumber(s.blip_y) or 0, z = tonumber(s.blip_z) or 0, sprite = tonumber(s.blip_sprite) or 455, colour = tonumber(s.blip_colour) or 5, scale = tonumber(s.blip_scale) or 0.8 },
+            ped  = { x = tonumber(s.ped_x) or 0, y = tonumber(s.ped_y) or 0, z = tonumber(s.ped_z) or 0, heading = tonumber(s.ped_h) or 0, model = s.ped_model or 'a_m_y_surfer_01' },
+            menu = { x = tonumber(s.menu_x) or 0, y = tonumber(s.menu_y) or 0, z = tonumber(s.menu_z) or 0, heading = tonumber(s.menu_h) or 0 },
+            returnZone = (s.return_x and { x=tonumber(s.return_x), y=tonumber(s.return_y), z=tonumber(s.return_z), w = tonumber(s.return_w) or 6.0, l = tonumber(s.return_l) or 6.0, h = tonumber(s.return_h) or 2.0 } ) or nil,
             spawns = spawnMap[s.id] or {},
             prices = priceMap[s.id] or {}
         }
     end
+
+    -- push to clients
+    TriggerClientEvent('azm_boats:setupShops', -1, ShopsCache)
 end
 
-AddEventHandler('onResourceStart', function(res)
-    if res ~= GetCurrentResourceName() then return end
-    ensureSeeds()
+-- load shops on resource start
+CreateThread(function()
+    Wait(1000)
     loadShops()
     sendLog("🔄 Resource Start", "azm_boatrental started and shops loaded.", COLOR_INFO)
 end)
@@ -216,6 +160,54 @@ ESX.RegisterServerCallback('azm_boats:isOwner', function(src, cb, shopId)
     else
         cb(false)
     end
+end)
+
+-- ====== Owner transfer event (سيرفر) =====
+RegisterNetEvent('azm_boats:transferOwner', function(shopId, targetServerId, days)
+    local src = source
+    local xPlayer = ESX.GetPlayerFromId(src)
+    if not xPlayer then return end
+    local shop = ShopsCache[shopId]
+    if not shop then
+        notify(src, "المتجر غير موجود.", 'error')
+        return
+    end
+
+    -- التحقق: المرسل هو المالك الحالي أو سوبرأدمن
+    local identifier = iden(xPlayer)
+    if not (shop.owner_identifier == identifier or isSuperAdmin(xPlayer)) then
+        notify(src, "ليست لديك صلاحية نقل ملكية هذا المتجر.", 'error')
+        return
+    end
+
+    local target = ESX.GetPlayerFromId(tonumber(targetServerId))
+    if not target then
+        notify(src, "اللاعب الهدف غير متصل.", 'error')
+        return
+    end
+
+    local targetIdentifier = iden(target)
+    local targetName = target.getName and target.getName() or ("#" .. tostring(targetServerId))
+
+    -- احسب expires_at إن طُلب أيام
+    local expires_sql = nil
+    if tonumber(days) and tonumber(days) > 0 then
+        expires_sql = ("DATE_ADD(NOW(), INTERVAL %d DAY)"):format(tonumber(days))
+    end
+
+    -- تحديث DB
+    if expires_sql then
+        MySQL.update.await('UPDATE azm_boat_shops SET owner_identifier = ?, owner_name = ?, expires_at = ' .. expires_sql .. ' WHERE id = ?', { targetIdentifier, targetName, shopId })
+    else
+        MySQL.update.await('UPDATE azm_boat_shops SET owner_identifier = ?, owner_name = ?, expires_at = NULL WHERE id = ?', { targetIdentifier, targetName, shopId })
+    end
+
+    sendLog("🔁 Ownership Transferred", ("Shop **%s** (ID %d) transferred from **%s** to **%s** by **%s**"):format(shop.name or ("#" .. shopId), shopId, shop.owner_name or 'unknown', targetName, xPlayer.getName()), COLOR_INFO)
+
+    -- reload shops and notify players
+    loadShops()
+    notify(src, "تم نقل ملكية المتجر بنجاح.", 'success')
+    notify(target.source or target.playerId or tonumber(targetServerId), ("تم منحك ملكية المتجر: %s"):format(shop.name or ("#" .. shopId)), 'success')
 end)
 
 -- ====== Cooldown Logic ======

@@ -66,6 +66,35 @@ local function showHelp(msg)
     EndTextCommandDisplayHelp(0, false, true, -1)
 end
 
+-- draw a small top-left key prompt (E) with Arabic text (no squares)
+local function drawTopLeftEPrompt(text)
+    -- rectangle background
+    local x, y, w, h = 0.08, 0.02, 0.16, 0.05
+    DrawRect(x + w/2, y + h/2, w, h, 0, 0, 0, 180)
+
+    -- key box (E)
+    local keyX, keyY, keyW, keyH = x + 0.014, y + 0.013, 0.028, 0.036
+    DrawRect(keyX + keyW/2, keyY + keyH/2, keyW, keyH, 220, 220, 220, 255)
+    -- draw key letter
+    SetTextFont(0)
+    SetTextScale(0.35, 0.35)
+    SetTextColour(0, 0, 0, 255)
+    SetTextCentre(true)
+    SetTextOutline()
+    SetTextEntry("STRING")
+    AddTextComponentString("E")
+    DrawText(keyX + keyW/2 - 0.003, keyY + keyH/2 - 0.007)
+
+    -- draw message (Arabic) to the right of key
+    SetTextFont(4)
+    SetTextScale(0.35, 0.35)
+    SetTextColour(255, 255, 255, 255)
+    SetTextWrap(x + 0.06, x + w - 0.01)
+    SetTextEntry("STRING")
+    AddTextComponentString(tostring(text))
+    DrawText(x + 0.06, y + 0.015)
+end
+
 -- =========================
 -- Bootstrap
 -- =========================
@@ -213,7 +242,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
             s._isOwner = isOwner
         end, s.id)
 
-        -- Return zone: visibility marker + help E
+        -- Return zone: visibility marker + top-left E prompt within 50m, press E to return
         if s.returnZone then
             CreateThread(function()
                 local markerVec = vector3(s.returnZone.x, s.returnZone.y, s.returnZone.z)
@@ -227,20 +256,21 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                         DrawMarker(1, s.returnZone.x, s.returnZone.y, s.returnZone.z - 1.0, 0.0,0.0,0.0, 0.0,0.0,0.0, s.returnZone.w or 6.0, s.returnZone.l or 6.0, s.returnZone.h or 2.0, 0,180,255,120, false, true, 2, false, nil, nil, false)
                     end
 
-                    if dist <= 5.0 then
-                        showHelp(L('hint.press_e_return'))
+                    if dist <= 50.0 then
+                        -- draw top-left prompt (Arabic)
+                        drawTopLeftEPrompt("اضغط للتفاعل")
                         if IsControlJustPressed(0, AZM and AZM.InteractKey or 38) then
                             tryReturnBoat(s.id)
                             Wait(500)
                         end
                     else
-                        Wait(300)
+                        Wait(250)
                     end
                 end
             end)
         end
 
-        -- E interaction (owner sees owner menu)
+        -- E interaction (owner sees owner menu) - unchanged except help messages are Arabic
         CreateThread(function()
             local key = (AZM and AZM.InteractKey) or 38 -- 38 = E
             local menuVec = vector3(s.menu.x, s.menu.y, s.menu.z)
@@ -250,7 +280,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 local pos = GetEntityCoords(ped)
                 if #(pos - menuVec) <= 2.0 then
                     if s._isOwner then
-                        showHelp(L('hint.press_e_owner'))
+                        showHelp("اضغط ~INPUT_PICKUP~ لعرض خيارات المتجر")
                         if IsControlJustPressed(0, key) then
                             local opts = {
                                 { title = L('menu.boats_title', s.name or ('#'..s.id)), icon = 'ship', onSelect = function() openShopMenu(s.id) end },
@@ -262,7 +292,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                             Wait(500)
                         end
                     else
-                        showHelp(L('hint.press_e_rent'))
+                        showHelp("اضغط ~INPUT_PICKUP~ للاستئجار")
                         if IsControlJustPressed(0, key) then
                             openShopMenu(s.id)
                             Wait(500)
@@ -364,6 +394,27 @@ RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
     if shop.deposit_default then
         opts[#opts+1] = { title = L('owner.deposit_default', shop.deposit_default or 0), icon='coins' }
     end
+
+    -- نقل الملكية: يطلب رقم السيرفر للاعب المستلم
+    opts[#opts+1] = {
+        title = "نقل الملكية",
+        icon = 'exchange-alt',
+        onSelect = function()
+            local input = lib.inputDialog("نقل الملكية", {
+                { type='number', label='رقم اللاعب على السيرفر (server id)', required=true, min=1 }
+            })
+            if input and input[1] then
+                local targetServerId = tonumber(input[1])
+                -- optional: اطلب أيام الانتهاء أو اترك فارغة للاحتفاظ كما هو
+                local daysInput = lib.inputDialog("أيام ملكية (ضع 0 لـدائم)", {
+                    { type='number', label='أيام', required=true, min=0 }
+                })
+                local days = 0
+                if daysInput and daysInput[1] then days = tonumber(daysInput[1]) end
+                TriggerServerEvent('azm_boats:transferOwner', shop.id, targetServerId, days)
+            end
+        end
+    }
 
     -- Quick withdraws
     opts[#opts+1] = {
