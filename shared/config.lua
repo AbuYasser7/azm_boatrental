@@ -1,34 +1,45 @@
--- azm_boatrental/config.lua
 -- Built for Al Azm County by abuyasser (discord.gg/azm)
 
 AZM = {}
 
 -- =============== General Settings ===============
-AZM.Debug = false                     -- تفعيل وضع التصحيح لعرض مناطق الـ Target
-AZM.CooldownMinutes = 60              -- يمنع اللاعب من استئجار مرة أخرى قبل مرور ساعة بعد ترك القارب
-AZM.Locale = 'en'                     -- اللغة الافتراضية (en/ar)
+AZM.Debug = false                     -- تفعيل وضع التصحيح (debug)
+AZM.CooldownMinutes = 60              -- يمنع الاستئجار مرة أخرى قبل (دقائق)
+
+-- اللغة الافتراضية: 'en' أو 'ar'
+AZM.Locale = 'en'
+
 AZM.Groups = {
     SuperAdmin = { 'superadmin', 'admin' } -- صلاحيات الإدارة العليا
 }
 
+-- =============== Interaction & Notifications ===============
+-- نظام التنبيهات: 'moh' أو 'pnotify' أو 'ox' (الافتراضي ox_lib)
+AZM.Notify = 'ox'
+
+-- طريقة التفاعل: 'key' لزر E، أو 'target' لاستخدام ox_target
+AZM.Interact    = 'key'
+AZM.InteractKey = 38                  -- 38 = INPUT_PICKUP (E)
+
 -- =============== Webhooks & Logging ===============
 AZM.Webhooks = {
-    main = "https://discord.com/api/webhooks/1430573542381981837/ayPtUI5MyPrMu7TWIq5Dt9uSxP6CIbe3ahBI8U92AL2lpK_G0YEnoqpBFmPqANn7atqO" -- ضع هنا رابط الويب هوك
+    -- ضع رابط الويب هوك الخاص بك
+    main = "https://discord.com/api/webhooks/1430573542381981837/ayPtUI5MyPrMu7TWIq5Dt9uSxP6CIbe3ahBI8U92AL2lpK_G0YEnoqpBFmPqANn7atqO"
 }
 
 AZM.Logs = {
-    enable = true,
+    enable   = true,
     username = "🚤 Al Azm Boat Rental | Logs",
-    avatar = "https://raw.githubusercontent.com/AbuYasser7/azmrp/refs/heads/main/128.png"
+    avatar   = "https://raw.githubusercontent.com/AbuYasser7/azmrp/refs/heads/main/128.png"
 }
 
 -- =============== Boat Catalog ===============
 AZM.Boats = {
-    { model = 'dinghy2', label = 'Dinghy', price = 300 },
-    { model = 'seashark', label = 'Seashark', price = 250 },
-    { model = 'speeder', label = 'Speeder', price = 600 },
-    { model = 'toro', label = 'Toro', price = 800 },
-    { model = 'jetmax', label = 'Jetmax', price = 900 },
+    { model = 'dinghy2',  label = 'Dinghy',  price = 300 },
+    { model = 'seashark', label = 'Seashark',price = 250 },
+    { model = 'speeder',  label = 'Speeder', price = 600 },
+    { model = 'toro',     label = 'Toro',    price = 800 },
+    { model = 'jetmax',   label = 'Jetmax',  price = 900 },
 }
 
 -- =============== Boat Shops ===============
@@ -75,69 +86,86 @@ AZM.Shops = {
 -- =============== Localization (Locales) ===============
 AZM.Locales = {
     ['en'] = {
-        ['ui.title'] = 'Boat Rental',
-        ['ui.blip_name'] = 'Boat Rental',
-        ['ui.owner_panel'] = 'Owner Panel',
-        ['ui.return_boat'] = 'Return Rented Boat',
-        ['ui.amount'] = 'Amount',
-        ['ui.new_price'] = 'New Price',
-        ['notif.enjoy'] = 'Enjoy your %s!',
+        ['ui.title']        = 'Boat Rental',
+        ['ui.blip_name']    = 'Boat Rental',
+        ['ui.owner_panel']  = 'Owner Panel',
+        ['ui.return_boat']  = 'Return Rented Boat',
+        ['ui.amount']       = 'Amount',
+        ['ui.new_price']    = 'New Price',
+        -- تلميحات زر E
+        ['hint.press_e_rent']   = 'Press ~INPUT_PICKUP~ to rent a boat',
+        ['hint.press_e_owner']  = 'Press ~INPUT_PICKUP~ to open Owner Panel',
+        ['hint.press_e_return'] = 'Press ~INPUT_PICKUP~ to return your boat',
+
+        ['notif.enjoy']     = 'Enjoy your %s!',
         ['notif.destroyed'] = 'Boat destroyed. You may rent again.',
-        ['notif.returned'] = 'Boat returned successfully!',
-        ['error.cannot_rent'] = 'You cannot rent right now.',
-        ['error.no_catalog'] = 'No boats available right now.',
-        ['error.no_catalog_shop'] = 'No boats configured for this shop.',
-        ['error.no_rental_this_shop'] = 'You have no active rental for this shop.',
-        ['error.boat_not_found'] = 'Boat not found.',
-        ['error.owner_panel'] = 'Owner panel not available.',
-        ['error.model_load_failed'] = 'Failed to load model: %s',
-        ['error.spawn_failed'] = 'Failed to spawn the boat.',
-        ['error.no_active_rental'] = 'You have no active rental.',
-        ['menu.boats_title'] = '%s — Boats',
-        ['menu.owner_title'] = 'Owner Panel — %s',
-        ['menu.withdraw_custom'] = 'Withdraw (custom)',
-        ['menu.deposit_custom'] = 'Deposit (custom)',
-        ['menu.set_prices'] = 'Set Prices',
-        ['menu.refresh'] = 'Refresh',
-        ['menu.set_price_for'] = 'Set price for %s',
-        ['owner.shop'] = 'Shop: %s',
-        ['owner.balance'] = 'Balance: $%d',
-        ['owner.platform_fee'] = 'Platform Fee: %d%%',
-        ['owner.deposit_default'] = 'Deposit Default: $%d',
-        ['owner.withdraw_1000'] = 'Withdraw $1,000',
-        ['owner.withdraw_5000'] = 'Withdraw $5,000'
+        ['notif.returned']  = 'Boat returned successfully!',
+
+        ['error.cannot_rent']        = 'You cannot rent right now.',
+        ['error.no_catalog']         = 'No boats available right now.',
+        ['error.no_catalog_shop']    = 'No boats configured for this shop.',
+        ['error.no_rental_this_shop']= 'You have no active rental for this shop.',
+        ['error.boat_not_found']     = 'Boat not found.',
+        ['error.owner_panel']        = 'Owner panel not available.',
+        ['error.model_load_failed']  = 'Failed to load model: %s',
+        ['error.spawn_failed']       = 'Failed to spawn the boat.',
+        ['error.no_active_rental']   = 'You have no active rental.',
+
+        ['menu.boats_title']         = '%s — Boats',
+        ['menu.owner_title']         = 'Owner Panel — %s',
+        ['menu.withdraw_custom']     = 'Withdraw (custom)',
+        ['menu.deposit_custom']      = 'Deposit (custom)',
+        ['menu.set_prices']          = 'Set Prices',
+        ['menu.refresh']             = 'Refresh',
+        ['menu.set_price_for']       = 'Set price for %s',
+
+        ['owner.shop']           = 'Shop: %s',
+        ['owner.balance']        = 'Balance: $%d',
+        ['owner.platform_fee']   = 'Platform Fee: %d%%',
+        ['owner.deposit_default']= 'Deposit Default: $%d',
+        ['owner.withdraw_1000']  = 'Withdraw $1,000',
+        ['owner.withdraw_5000']  = 'Withdraw $5,000'
     },
+
     ['ar'] = {
-        ['ui.title'] = 'تأجير القوارب',
-        ['ui.blip_name'] = 'تأجير القوارب',
-        ['ui.owner_panel'] = 'لوحة المالك',
-        ['ui.return_boat'] = 'إرجاع القارب المستأجر',
-        ['ui.amount'] = 'المبلغ',
-        ['ui.new_price'] = 'السعر الجديد',
-        ['notif.enjoy'] = 'استمتع برحلتك على %s!',
+        ['ui.title']        = 'تأجير القوارب',
+        ['ui.blip_name']    = 'تأجير القوارب',
+        ['ui.owner_panel']  = 'لوحة المالك',
+        ['ui.return_boat']  = 'إرجاع القارب المستأجر',
+        ['ui.amount']       = 'المبلغ',
+        ['ui.new_price']    = 'السعر الجديد',
+        -- تلميحات زر E
+        ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ لاستئجار قارب',
+        ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ لفتح لوحة المالك',
+        ['hint.press_e_return'] = 'اضغط ~INPUT_PICKUP~ لإرجاع القارب',
+
+        ['notif.enjoy']     = 'استمتع برحلتك على %s!',
         ['notif.destroyed'] = 'تم تدمير القارب، يمكنك الاستئجار مرة أخرى.',
-        ['notif.returned'] = 'تم إرجاع القارب بنجاح!',
-        ['error.cannot_rent'] = 'لا يمكنك الاستئجار الآن.',
-        ['error.no_catalog'] = 'لا توجد قوارب متاحة حالياً.',
-        ['error.no_catalog_shop'] = 'لا توجد قوارب مخصصة لهذا المتجر.',
-        ['error.no_rental_this_shop'] = 'ليس لديك استئجار نشط لهذا المتجر.',
-        ['error.boat_not_found'] = 'لم يتم العثور على القارب.',
-        ['error.owner_panel'] = 'لوحة المالك غير متاحة.',
-        ['error.model_load_failed'] = 'فشل تحميل الموديل: %s',
-        ['error.spawn_failed'] = 'حدث خطأ أثناء إنشاء القارب.',
-        ['error.no_active_rental'] = 'ليس لديك أي قارب مستأجر حالياً.',
-        ['menu.boats_title'] = '%s — القوارب المتاحة',
-        ['menu.owner_title'] = 'لوحة المالك — %s',
-        ['menu.withdraw_custom'] = 'سحب (مخصص)',
-        ['menu.deposit_custom'] = 'إيداع (مخصص)',
-        ['menu.set_prices'] = 'تعديل الأسعار',
-        ['menu.refresh'] = 'تحديث البيانات',
-        ['menu.set_price_for'] = 'تحديد سعر القارب %s',
-        ['owner.shop'] = 'المتجر: %s',
-        ['owner.balance'] = 'الرصيد: $%d',
-        ['owner.platform_fee'] = 'نسبة المنصة: %d%%',
-        ['owner.deposit_default'] = 'الوديعة الافتراضية: $%d',
-        ['owner.withdraw_1000'] = 'سحب $1,000',
-        ['owner.withdraw_5000'] = 'سحب $5,000'
+        ['notif.returned']  = 'تم إرجاع القارب بنجاح!',
+
+        ['error.cannot_rent']        = 'لا يمكنك الاستئجار الآن.',
+        ['error.no_catalog']         = 'لا توجد قوارب متاحة حالياً.',
+        ['error.no_catalog_shop']    = 'لا توجد قوارب مخصصة لهذا المتجر.',
+        ['error.no_rental_this_shop']= 'ليس لديك استئجار نشط لهذا المتجر.',
+        ['error.boat_not_found']     = 'لم يتم العثور على القارب.',
+        ['error.owner_panel']        = 'لوحة المالك غير متاحة.',
+        ['error.model_load_failed']  = 'فشل تحميل الموديل: %s',
+        ['error.spawn_failed']       = 'حدث خطأ أثناء إنشاء القارب.',
+        ['error.no_active_rental']   = 'ليس لديك أي قارب مستأجر حالياً.',
+
+        ['menu.boats_title']         = '%s — القوارب المتاحة',
+        ['menu.owner_title']         = 'لوحة المالك — %s',
+        ['menu.withdraw_custom']     = 'سحب (مخصص)',
+        ['menu.deposit_custom']      = 'إيداع (مخصص)',
+        ['menu.set_prices']          = 'تعديل الأسعار',
+        ['menu.refresh']             = 'تحديث',
+        ['menu.set_price_for']       = 'تحديد سعر %s',
+
+        ['owner.shop']           = 'المتجر: %s',
+        ['owner.balance']        = 'الرصيد: $%d',
+        ['owner.platform_fee']   = 'نسبة المنصة: %d%%',
+        ['owner.deposit_default']= 'الوديعة الافتراضية: $%d',
+        ['owner.withdraw_1000']  = 'سحب $1,000',
+        ['owner.withdraw_5000']  = 'سحب $5,000'
     }
 }

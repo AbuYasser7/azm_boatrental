@@ -19,6 +19,54 @@ local function L(key, ...)
 end
 
 -- =========================
+-- Notify helper (moh_notify / pNotify / ox_lib)
+-- =========================
+local function notify(arg)
+    local system = (AZM and AZM.Notify) or 'ox'  -- 'moh' | 'pnotify' | 'ox'
+    local text, typ
+
+    if type(arg) == 'string' then
+        text = arg
+        typ = 'inform'
+    else
+        text = arg.description or arg.text or ''
+        typ  = arg.type or 'inform'
+    end
+
+    if system == 'moh' then
+        TriggerEvent('moh_notify:SendNotification', {
+            type       = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
+            text       = text,
+            theme      = 'gta',
+            layout     = 'topRight',
+            timeout    = 5000,
+            progressBar= true
+        })
+    elseif system == 'pnotify' then
+        TriggerEvent('pNotify:SendNotification', {
+            text       = text,
+            type       = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
+            layout     = 'topRight',
+            timeout    = 5000,
+            progressBar= true
+        })
+    else
+        lib.notify({
+            title       = L('ui.title'),
+            description = text,
+            type        = typ
+        })
+    end
+end
+
+-- Help text (E prompt)
+local function showHelp(msg)
+    AddTextEntry('AZM_BOATS_HELP', msg)
+    BeginTextCommandDisplayHelp('AZM_BOATS_HELP')
+    EndTextCommandDisplayHelp(0, false, true, -1)
+end
+
+-- =========================
 -- Bootstrap
 -- =========================
 CreateThread(function()
@@ -32,16 +80,8 @@ RegisterNetEvent('esx:playerLoaded', function(xPlayer)
 end)
 
 -- =========================
--- Helpers
+-- Model helper
 -- =========================
-local function notify(opts)
-    if type(opts) == 'string' then
-        return lib.notify({ title = L('ui.title'), description = opts, type = 'inform' })
-    end
-    opts.title = opts.title or L('ui.title')
-    lib.notify(opts)
-end
-
 local function reqModel(hash)
     if not IsModelInCdimage(hash) then return false end
     lib.requestModel(hash)
@@ -69,7 +109,7 @@ local function spawnClientBoat(model, coords, plate)
 end
 
 -- =========================
--- World setup (blips/peds/zones)
+-- World setup (blips/peds/zones + E prompt)
 -- =========================
 RegisterNetEvent('azm_boats:setupShops', function(_shops)
     shops = _shops or {}
@@ -95,7 +135,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
             SetBlockingOfNonTemporaryEvents(ped, true)
         end
 
-        -- Menu zone (rent)
+        -- ox_target (يبقى كما هو)
         exports.ox_target:addBoxZone({
             coords = vec3(s.menu.x, s.menu.y, s.menu.z),
             size = vec3(1.2, 1.2, 1.2),
@@ -105,7 +145,7 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 {
                     name = ('boat_shop_menu_%s'):format(s.id),
                     icon = 'fa-solid fa-ship',
-                    label = L('ui.open_shop', s.name),
+                    label = L('ui.open_shop', s.name or ('#'..s.id)),
                     distance = 2.0,
                     onSelect = function()
                         openShopMenu(s.id)
@@ -117,7 +157,6 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                     label = L('ui.owner_panel'),
                     distance = 2.0,
                     onSelect = function()
-                        -- يتم التحقق من الملكية على السيرفر
                         TriggerServerEvent('azm_boats:reqOwnerMenu')
                     end
                 }
@@ -144,6 +183,31 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                 }
             })
         end
+
+        -- إضافة تفاعل زر E بدون إلغاء ox_target
+        CreateThread(function()
+            local key = (AZM and AZM.InteractKey) or 38 -- 38 = E
+            local prompt = (AZM and AZM.Locale == 'ar')
+                and 'اضغط ~INPUT_PICKUP~ لاستئجار قارب'
+                or 'Press ~INPUT_PICKUP~ to rent a boat'
+
+            local menuVec = vector3(s.menu.x, s.menu.y, s.menu.z)
+            while true do
+                Wait(0)
+                local ped = PlayerPedId()
+                local pos = GetEntityCoords(ped)
+                if #(pos - menuVec) <= 2.0 then
+                    showHelp(prompt)
+                    if IsControlJustPressed(0, key) then
+                        openShopMenu(s.id)
+                        -- مهلة صغيرة لتفادي تكرار الفتح
+                        Wait(500)
+                    end
+                else
+                    Wait(300)
+                end
+            end
+        end)
     end
 end)
 
@@ -230,10 +294,10 @@ RegisterNetEvent('azm_boats:openOwnerMenu', function(shop)
     }
 
     if shop.platform_fee_pct then
-        opts[#opts+1] = { title = L('owner.platform_fee', shop.platform_fee_pct or 0), icon = 'percent' }
+        opts[#opts+1] = { title = L('owner.platform_fee', shop.platform_fee_pct or 0), icon='percent' }
     end
     if shop.deposit_default then
-        opts[#opts+1] = { title = L('owner.deposit_default', shop.deposit_default or 0), icon = 'coins' }
+        opts[#opts+1] = { title = L('owner.deposit_default', shop.deposit_default or 0), icon='coins' }
     end
 
     -- Quick withdraws
