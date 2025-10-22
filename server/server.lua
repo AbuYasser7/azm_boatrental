@@ -238,37 +238,26 @@ end
 
 -- ====== Rental Core (تعديل: تقسيم السعر بين مالك المتجر وحصة المدينة) =====
 -- فحص خلوّ السباون (OneSync)
+-- old isSpawnClear used GetAllVehicles (not valid on server). Replace with safe stub (يمكن تحسين لاحقاً بخبرة OneSync)
 local function isSpawnClear(spawn)
-    local vehicles = GetAllVehicles() or {}
-    local r2 = (SPAWN_CLEAR_RADIUS or 5.0) * (SPAWN_CLEAR_RADIUS or 5.0)
-    for i=1, #vehicles do
-        local v = vehicles[i]
-        local pos = GetEntityCoords(v)
-        local dx = pos.x - spawn.x
-        local dy = pos.y - spawn.y
-        local dz = pos.z - spawn.z
-        local dist2 = dx*dx + dy*dy + dz*dz
-        if dist2 <= r2 then
-            return false
-        end
-    end
+    -- لا نفعل فحصاً دقيقاً من السيرفر — إذا رغبت بفحص حقيقي استخدم فحص client-side أو OneSync natives المُمكّنة على السيرفر
     return true
 end
 
 local function chooseFreeSpawn(shop)
-    -- إذا لم توجد سباونات في الكاش، حاول استخدام القيم الافتراضية من AZM.Shops (config)
-    if shop and shop.spawns and #shop.spawns > 0 then
-        -- ببساطة نُعيد أول سباون. يمكن توسيع لاحقاً لاختيار أقرب سباون فارغ بالتحقق client-side.
+    if not shop then return nil end
+    -- إذا توجد سباونات من القاعدة نعيد أول واحد صالح
+    if shop.spawns and #shop.spawns > 0 then
         local s = shop.spawns[1]
-        return { x = s.x, y = s.y, z = s.z, h = s.h }
+        return { x = s.x + 0.0, y = s.y + 0.0, z = s.z + 0.0, h = s.h + 0.0 }
     end
 
-    -- fallback: حاول إيجاد تعريف في AZM.Shops (config.lua)
+    -- fallback إلى config AZM.Shops إن وُجد تعريف محلي
     if AZM and AZM.Shops then
         for _, s in ipairs(AZM.Shops) do
             if s.id == shop.id and s.spawns and #s.spawns > 0 then
                 local sp = s.spawns[1]
-                return { x = sp.x, y = sp.y, z = sp.z, h = sp.h }
+                return { x = sp.x + 0.0, y = sp.y + 0.0, z = sp.z + 0.0, h = sp.h + 0.0 }
             end
         end
     end

@@ -104,14 +104,47 @@ local function reqModel(hash)
     return safeRequestModel(hash, 5000)
 end
 
+local function ensureCleanVehicles(maxKeep)
+    maxKeep = maxKeep or 6
+    -- حذف المركبات القديمة إذا تجاوزنا الحد
+    while #createdVehicles > maxKeep do
+        local v = table.remove(createdVehicles, 1)
+        if v and v.veh and DoesEntityExist(v.veh) then
+            SetEntityAsMissionEntity(v.veh, true, true)
+            DeleteEntity(v.veh)
+        end
+    end
+end
+
+local function fixGroundZ(x,y,z)
+    local gz = nil
+    local retries = 10
+    for i=1,retries do
+        local found, groundZ = GetGroundZFor_3dCoord(x, y, z + 5.0, 0)
+        if found and groundZ and groundZ > -1000 then
+            gz = groundZ
+            break
+        end
+        z = z + 1.0
+        Wait(10)
+    end
+    return gz or z
+end
+
 local function spawnClientBoat(model, coords, plate)
+    -- حماية من تسريب كيانات
+    ensureCleanVehicles(6)
+
     local hash = joaat(model)
     if not reqModel(hash) then
         notify({ description = L('error.model_load_failed', tostring(model)), type = 'error' })
         return nil
     end
 
-    local veh = CreateVehicle(hash, coords.x, coords.y, coords.z, coords.h or 0.0, true, false)
+    -- تصحيح z إلى أرض ثابتة إن أمكن
+    coords.z = fixGroundZ(coords.x, coords.y, coords.z or 0.0)
+
+    local veh = CreateVehicle(hash, coords.x, coords.y, coords.z + 0.5, coords.h or 0.0, true, false)
     if not DoesEntityExist(veh) then
         SetModelAsNoLongerNeeded(hash)
         notify({ description = L('error.spawn_failed'), type = 'error' })
@@ -123,13 +156,16 @@ local function spawnClientBoat(model, coords, plate)
     SetVehicleEngineOn(veh, true, true, false)
     SetVehicleDirtLevel(veh, 0.0)
     SetVehicleNumberPlateText(veh, plate or ('AZM'..math.random(1000,9999)))
-    TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
 
-    -- keep track so we can cleanup later (store networked id)
+    -- warp with small delay to ensure entity valid
+    Wait(50)
+    if DoesEntityExist(veh) then
+        TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
+    end
+
     local netId = VehToNet(veh)
     createdVehicles[#createdVehicles+1] = {veh = veh, net = netId}
 
-    -- release model
     SetModelAsNoLongerNeeded(hash)
     return veh
 end
