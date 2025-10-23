@@ -135,8 +135,9 @@ AZM.Locales = {
         ['ui.return_boat']  = 'إرجاع القارب',
         ['ui.amount']       = 'المبلغ',
         ['ui.new_price']    = 'السعر الجديد',
+        ['ui.top_left_prompt'] = 'اضغط للتفاعل', -- يستخدم في الصندوق أعلى يسار
 
-        -- تلميحات (مفاتيح E) — بالعربية فقط (بدون أي حرف إنجليزي)
+        -- تلميحات (مفاتيح E) — بالعربية فقط
         ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ للاستئجار',
         ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ للوصول إلى لوحة المالك',
         ['hint.press_e_return'] = 'اضغط ~INPUT_PICKUP~ لإرجاع القارب هنا',
@@ -146,7 +147,7 @@ AZM.Locales = {
         ['notif.destroyed'] = 'تم تدمير القارب، يمكنك الاستئجار مرة أخرى.',
         ['notif.returned']  = 'تم إرجاع القارب بنجاح!',
 
-        -- أخطاء وإرشادات
+        -- أخطاء وإرشادات (مستخدمة بالسرفر أيضاً)
         ['error.cannot_rent']        = 'لا يمكنك الاستئجار الآن.',
         ['error.no_catalog']         = 'لا توجد قوارب متاحة حالياً.',
         ['error.no_catalog_shop']    = 'لا توجد قوارب مخصصة لهذا المتجر.',
@@ -156,6 +157,17 @@ AZM.Locales = {
         ['error.model_load_failed']  = 'فشل تحميل الموديل: %s',
         ['error.spawn_failed']       = 'حدث خطأ أثناء إنشاء القارب.',
         ['error.no_active_rental']   = 'ليس لديك أي قارب مستأجر حالياً.',
+        ['error.no_spawn']           = 'لا توجد نقاط استدعاء متاحة حالياً.',
+        ['error.boat_unavailable']   = 'القارب غير متوفر حالياً.',
+        ['error.need_money']         = 'تحتاج إلى $%d (السعر + الوديعة).',
+        ['error.price_out_of_range'] = 'السعر خارج الحدود المسموح بها (%d - %d).',
+        ['error.active_rental']      = 'لديك إيجار نشط بالفعل.',
+        ['error.must_wait']          = 'عليك الانتظار %02d:%02d قبل الاستئجار مرة أخرى.',
+        ['error.shop_not_found']     = 'المتجر غير موجود.',
+        ['error.not_owner']          = 'أنت لست مالك هذا المتجر.',
+        ['success.transfered']       = 'تم نقل ملكية المتجر بنجاح.',
+        ['success.claim_platform']   = 'تم سحب مبلغ $%d من خزنة المدينة.',
+        ['admin.no_permission']      = 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
 
         -- قوائم وواجهات
         ['menu.boats_title']         = '%s — القوارب المتاحة',
@@ -173,5 +185,6 @@ AZM.Locales = {
         ['owner.deposit_default']= 'الوديعة الافتراضية: $%d',
         ['owner.withdraw_1000']  = 'سحب $1,000',
         ['owner.withdraw_5000']  = 'سحب $5,000'
-    }
+
+    }    }
 }

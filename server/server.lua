@@ -240,10 +240,20 @@ RegisterNetEvent('azm_boats:transferOwner', function(shopId, targetServerId, day
     sendLog("🔁 Ownership Transferred (admin)", ("Shop %s (ID %d) transferred to %s by %s"):format(shop.name or ("#"..shopId), shopId, targetName, xPlayer.getName()), COLOR_INFO)
 end)
 
+-- ====== Helper: server-side localization (SL) ======
+local function SL(key, ...)
+    local loc = (AZM and AZM.Locales and AZM.Locales[AZM.Locale]) or {}
+    local s = loc[key] or key
+    if select('#', ...) > 0 then
+        return s:format(...)
+    end
+    return s
+end
+
 -- ====== Cooldown Logic ======
-local function canPlayerRent(identifier
+local function canPlayerRent(identifier)
     if ActiveRentals[identifier] then
-        return false, 'You already have an active rental.'
+        return false, SL('error.active_rental')
     end
     local lastAbandoned = AbandonedTimes[identifier]
     if lastAbandoned then
@@ -252,7 +262,7 @@ local function canPlayerRent(identifier
         if wait > 0 then
             local m = math.floor(wait/60)
             local s = wait % 60
-            return false, ('You must wait %02d:%02d before renting again.'):format(m, s)
+            return false, SL('error.must_wait', m, s)
         end
     end
     return true
@@ -293,7 +303,7 @@ end
 
 ESX.RegisterServerCallback('azm_boats:getCatalog', function(src, cb, shopId)
     local shop = ShopsCache[shopId]
-    if not shop then return cb({}, false, 'Shop not found', '') end
+    if not shop then return cb({}, false, SL('error.shop_not_found'), '') end
 
     local xPlayer = ESX.GetPlayerFromId(src)
     local identifier = iden(xPlayer)
@@ -324,7 +334,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     local priceInfo = shop.prices[model]
     if not priceInfo then
-        notify(src, 'Boat unavailable.', 'error')
+        notify(src, SL('error.boat_unavailable'), 'error')
         sendLog("❌ Boat Unavailable", ("Player: **%s** (%s)\nShop: **%s**\nModel: **%s**"):format(xPlayer.getName(), identifier, shop.name, tostring(model)), COLOR_ERROR)
         return
     end
@@ -333,7 +343,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     local minp  = priceInfo.min_price or 0
     local maxp  = priceInfo.max_price or 2147483647
     if price < minp or price > maxp then
-        notify(src, ('Price out of allowed range (%d - %d).'):format(minp, maxp), 'error')
+        notify(src, SL('error.price_out_of_range', minp, maxp), 'error')
         sendLog("⚠️ Price Out of Range", ("Shop: **%s**\nModel: **%s**\nPrice: **%d** (Allowed: %d - %d)\nBy: **%s** (%s)")
             :format(shop.name, tostring(model), price, minp, maxp, xPlayer.getName(), identifier), COLOR_WARN)
         return
@@ -347,7 +357,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     local total = price + deposit
     if xPlayer.getMoney() < total then
-        notify(src, ('Need $%d (price+deposit).'):format(total), 'error')
+        notify(src, SL('error.need_money', total), 'error')
         sendLog("💸 Insufficient Cash", ("Player: **%s** (%s)\nNeeded: **$%d**\nHave: **$%d**")
             :format(xPlayer.getName(), identifier, total, xPlayer.getMoney()), COLOR_WARN)
         return
@@ -355,7 +365,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     local spawn = chooseFreeSpawn(shop)
     if not spawn then
-        notify(src, 'No spawn points available.', 'error')
+        notify(src, SL('error.no_spawn'), 'error')
         sendLog("🚫 No Spawn", ("Shop: **%s** | Requested by **%s** (%s)"):format(shop.name, xPlayer.getName(), identifier), COLOR_ERROR)
         return
     end

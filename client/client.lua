@@ -69,30 +69,30 @@ end
 -- draw a small top-left key prompt (E) with Arabic text (no squares)
 local function drawTopLeftEPrompt(text)
     -- rectangle background
-    local x, y, w, h = 0.08, 0.02, 0.16, 0.05
-    DrawRect(x + w/2, y + h/2, w, h, 0, 0, 0, 180)
+    local x, y, w, h = 0.08, 0.02, 0.20, 0.055
+    DrawRect(x + w/2, y + h/2, w, h, 0, 0, 0, 200)
 
-    -- key box (E)
-    local keyX, keyY, keyW, keyH = x + 0.014, y + 0.013, 0.028, 0.036
-    DrawRect(keyX + keyW/2, keyY + keyH/2, keyW, keyH, 220, 220, 220, 255)
-    -- draw key letter
+    -- key box (عرض نص عربي بدلاً من حرف إنجليزي)
+    local keyX, keyY, keyW, keyH = x + 0.012, y + 0.012, 0.036, 0.038
+    DrawRect(keyX + keyW/2, keyY + keyH/2, keyW, keyH, 230, 230, 230, 255)
+
+    -- draw Arabic small text inside key box (مثلاً: اضغط)
     SetTextFont(0)
-    SetTextScale(0.35, 0.35)
+    SetTextScale(0.28, 0.28)
     SetTextColour(0, 0, 0, 255)
     SetTextCentre(true)
-    SetTextOutline()
     SetTextEntry("STRING")
-    AddTextComponentString("E")
+    AddTextComponentString("اضغط")
     DrawText(keyX + keyW/2 - 0.003, keyY + keyH/2 - 0.007)
 
     -- draw message (Arabic) to the right of key
     SetTextFont(4)
-    SetTextScale(0.35, 0.35)
+    SetTextScale(0.36, 0.36)
     SetTextColour(255, 255, 255, 255)
     SetTextWrap(x + 0.06, x + w - 0.01)
     SetTextEntry("STRING")
     AddTextComponentString(tostring(text))
-    DrawText(x + 0.06, y + 0.015)
+    DrawText(x + 0.06, y + 0.018)
 end
 
 -- =========================
