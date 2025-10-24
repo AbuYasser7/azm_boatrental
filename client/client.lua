@@ -6,93 +6,62 @@ local PlayerData = {}
 local shops = {}
 local myRental = nil  -- {shop_id, plate, veh(net)}
 
--- =========================
 -- Localization helper
--- =========================
 local function L(key, ...)
-    local locTable = (AZM and AZM.Locales and AZM.Locales[AZM.Locale]) or {}
-    local s = locTable[key] or key
+    local loc = (AZM and AZM.Locales and AZM.Locales[AZM.Locale]) or {}
+    local s = loc[key] or key
     if select('#', ...) > 0 then
         return s:format(...)
     end
     return s
 end
 
--- =========================
--- Notify helper (moh_notify / pNotify / ox_lib)
--- =========================
+-- Notify helper (moh_notify / pNotify / ox_lib / ESX)
 local function notify(arg)
-    local system = (AZM and AZM.Notify) or 'ox'  -- 'moh' | 'pnotify' | 'ox'
-    local text, typ
-
+    local text, typ = nil, 'inform'
     if type(arg) == 'string' then
         text = arg
-        typ = 'inform'
-    else
+    elseif type(arg) == 'table' then
         text = arg.description or arg.text or ''
         typ  = arg.type or 'inform'
     end
+    if not text then return end
 
-    if system == 'moh' then
-        TriggerEvent('moh_notify:SendNotification', {
-            type       = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
-            text       = text,
-            theme      = 'gta',
-            layout     = 'topRight',
-            timeout    = 5000,
-            progressBar= true
-        })
-    elseif system == 'pnotify' then
-        TriggerEvent('pNotify:SendNotification', {
-            text       = text,
-            type       = (typ == 'error' and 'error') or (typ == 'warning' and 'warning') or 'success',
-            layout     = 'topRight',
-            timeout    = 5000,
-            progressBar= true
-        })
+    if AZM and AZM.Notify and AZM.Notify == 'moh' then
+        TriggerEvent('moh_notify:SendNotification', { type = (typ == 'error' and 'error') or 'success', text = text })
+    elseif lib and lib.notify then
+        lib.notify({ title = L('ui.title'), description = text, type = typ == 'error' and 'error' or 'success' })
+    elseif ESX and ESX.ShowNotification then
+        ESX.ShowNotification(tostring(text))
     else
-        lib.notify({
-            title       = L('ui.title'),
-            description = text,
-            type        = typ
-        })
+        TriggerEvent('chat:addMessage', { args = { tostring(text) } })
     end
 end
 
 -- Help text (E prompt) - use AddTextComponentSubstringPlayerName for proper Unicode display
 local function showHelp(msg)
+    if not msg then return end
     BeginTextCommandDisplayHelp('STRING')
     AddTextComponentSubstringPlayerName(tostring(msg))
     EndTextCommandDisplayHelp(0, false, true, -1)
 end
 
--- draw a small top-left key prompt (E) with Arabic text (no squares)
-local function drawTopLeftEPrompt(text)
-    -- rectangle background
-    local x, y, w, h = 0.08, 0.02, 0.20, 0.055
-    DrawRect(x + w/2, y + h/2, w, h, 0, 0, 0, 200)
-
-    -- key box (عرض نص عربي بدلاً من حرف إنجليزي)
-    local keyX, keyY, keyW, keyH = x + 0.012, y + 0.012, 0.036, 0.038
-    DrawRect(keyX + keyW/2, keyY + keyH/2, keyW, keyH, 230, 230, 230, 255)
-
-    -- draw Arabic small text inside key box (مثلاً: اضغط)
+-- draw a small top-left key prompt (E) - draw only the key box + "E" (Arabic text uses showHelp)
+local function drawTopLeftEPrompt()
+    local x, y, w, h = 0.08, 0.02, 0.16, 0.05
+    -- background
+    DrawRect(x + w / 2, y + h / 2, w, h, 0, 0, 0, 180)
+    -- key box
+    local keyX, keyY, keyW, keyH = x + 0.014, y + 0.013, 0.028, 0.036
+    DrawRect(keyX + keyW / 2, keyY + keyH / 2, keyW, keyH, 230, 230, 230, 255)
+    -- letter E inside key
     SetTextFont(0)
-    SetTextScale(0.28, 0.28)
+    SetTextScale(0.35, 0.35)
     SetTextColour(0, 0, 0, 255)
     SetTextCentre(true)
-    SetTextEntry("STRING")
-    AddTextComponentString("اضغط")
-    DrawText(keyX + keyW/2 - 0.003, keyY + keyH/2 - 0.007)
-
-    -- draw message (Arabic) to the right of key
-    SetTextFont(4)
-    SetTextScale(0.36, 0.36)
-    SetTextColour(255, 255, 255, 255)
-    SetTextWrap(x + 0.06, x + w - 0.01)
-    SetTextEntry("STRING")
-    AddTextComponentString(tostring(text))
-    DrawText(x + 0.06, y + 0.018)
+    SetTextEntry('STRING')
+    AddTextComponentString('E')
+    DrawText(keyX + keyW / 2 - 0.003, keyY + keyH / 2 - 0.007)
 end
 
 -- =========================
@@ -100,7 +69,7 @@ end
 -- =========================
 CreateThread(function()
     while not ESX do Wait(0) end
-    PlayerData = ESX.GetPlayerData()
+    PlayerData = ESX.GetPlayerData and ESX.GetPlayerData() or {}
     TriggerServerEvent('azm_boats:clientReady')
 end)
 
@@ -257,8 +226,13 @@ RegisterNetEvent('azm_boats:setupShops', function(_shops)
                     end
 
                     if dist <= 50.0 then
-                        -- draw top-left prompt (Arabic)
-                        drawTopLeftEPrompt("اضغط للتفاعل")
+                        -- draw only the E box (avoids Arabic rendering issues in DrawText)
+                        drawTopLeftEPrompt()
+                    end
+
+                    -- when close enough show proper Arabic help (uses AddTextComponentSubstringPlayerName)
+                    if dist <= 5.0 then
+                        showHelp(L('hint.press_e_return'))
                         if IsControlJustPressed(0, AZM and AZM.InteractKey or 38) then
                             tryReturnBoat(s.id)
                             Wait(500)

@@ -46,40 +46,29 @@ AZM.Boats = {
 AZM.Shops = {
     {
         id = 1,
-        name = "Al Azm Marina 1",
-        blip = { x = -1600.08, y = -1176.98, z = 1.51 },
-        ped  = { x = -1600.08, y = -1176.98, z = 0.51, heading = 300.47, model = "a_m_y_surfer_01" },
-        menu = { x = -1600.08, y = -1176.98, z = 1.51, heading = 0.88 },
+        name = "استئجار قوارب العزم لوس",
+        blip = { x = 23.77, y = -2806.98, z = 5.7 },
+        ped  = { x = 23.77, y = -2806.98, z = 5.7, heading = 2.38, model = "a_m_y_surfer_01" },
+        menu = { x = 23.77, y = -2806.98, z = 5.7, heading = 2.38 },
         spawns = {
-            { x = -1630.47, y = -1191.95, z = 0.12, h = 104.88 },
-            { x = -1635.11, y = -1194.72, z = 0.10, h = 105.14 },
-            { x = -1639.12, y = -1198.00, z = 0.10, h = 106.12 },
+            {x = 14.88, y = -2822.49, z = 7.03, h = 5.79},
+            {x = 24.88, y = -2826.72, z = 5.54, h = 4.6},
+            {x = 37.58, y = -2825.81, z = 5.54, h = 2.87},
         },
-        returnZone = { x = -1625.0, y = -1187.5, z = 0.2, w = 8.0, l = 8.0, h = 3.0 },
+        returnZone = { x = -5.82, y = -2768.88, z = 4.96, w = 8.0, l = 8.0, h = 3.0 },
     },
     {
         id = 2,
-        name = "Al Azm Marina 2",
-        blip = { x = -801.21, y = -1492.77, z = 1.60 },
-        ped  = { x = -801.21, y = -1492.77, z = 0.60, heading = 180.00, model = "a_m_y_beach_02" },
-        menu = { x = -801.21, y = -1492.77, z = 1.60, heading = 180.00 },
+        name = "استئجار قوارب العزم بوليتو",
+        blip = { x = -281.12, y = 6635.53, z = 7.56 },
+        ped  = { x = -281.12, y = 6635.53, z = 7.56, heading = 230.26, model = "a_m_y_beach_02" },
+        menu = { x = -281.12, y = 6635.53, z = 7.56, heading = 230.26 },
         spawns = {
-            { x = -808.45, y = -1500.33, z = 0.15, h = 170.88 },
-            { x = -813.42, y = -1504.21, z = 0.15, h = 171.12 },
+            {x = -291.59, y = 6635.82, z = 3, h = 16.62},
+            {x = -285.34, y = 6637.68, z = 3, h = 75.29},
+            {x = -279.55, y = 6643.45, z = 3, h = 9.22},
         },
         returnZone = { x = -806.12, y = -1498.12, z = 0.2, w = 8.0, l = 8.0, h = 3.0 },
-    },
-    {
-        id = 3,
-        name = "Al Azm Marina 3",
-        blip = { x = -295.15, y = 6637.31, z = 7.43 },
-        ped  = { x = -295.15, y = 6637.31, z = 6.43, heading = 130.00, model = "a_m_y_beach_03" },
-        menu = { x = -295.15, y = 6637.31, z = 7.43, heading = 130.00 },
-        spawns = {
-            { x = -300.22, y = 6634.12, z = 0.12, h = 140.00 },
-            { x = -304.18, y = 6631.41, z = 0.12, h = 142.00 },
-        },
-        returnZone = { x = -297.8, y = 6635.1, z = 0.3, w = 7.5, l = 7.5, h = 3.0 },
     },
 }
 
@@ -88,19 +77,17 @@ AZM.Locales = {
     ['en'] = {
         ['ui.title']        = 'Boat Rental',
         ['ui.blip_name']    = 'Boat Rental',
+        ['ui.open_shop']    = 'Open shop: %s',
         ['ui.owner_panel']  = 'Owner Panel',
         ['ui.return_boat']  = 'Return Rented Boat',
         ['ui.amount']       = 'Amount',
         ['ui.new_price']    = 'New Price',
-        -- تلميحات زر E
         ['hint.press_e_rent']   = 'Press ~INPUT_PICKUP~ to rent a boat',
         ['hint.press_e_owner']  = 'Press ~INPUT_PICKUP~ to open Owner Panel',
         ['hint.press_e_return'] = 'Press ~INPUT_PICKUP~ to return your boat',
-
         ['notif.enjoy']     = 'Enjoy your %s!',
         ['notif.destroyed'] = 'Boat destroyed. You may rent again.',
         ['notif.returned']  = 'Boat returned successfully!',
-
         ['error.cannot_rent']        = 'You cannot rent right now.',
         ['error.no_catalog']         = 'No boats available right now.',
         ['error.no_catalog_shop']    = 'No boats configured for this shop.',
@@ -110,7 +97,6 @@ AZM.Locales = {
         ['error.model_load_failed']  = 'Failed to load model: %s',
         ['error.spawn_failed']       = 'Failed to spawn the boat.',
         ['error.no_active_rental']   = 'You have no active rental.',
-
         ['menu.boats_title']         = '%s — Boats',
         ['menu.owner_title']         = 'Owner Panel — %s',
         ['menu.withdraw_custom']     = 'Withdraw (custom)',
@@ -118,7 +104,6 @@ AZM.Locales = {
         ['menu.set_prices']          = 'Set Prices',
         ['menu.refresh']             = 'Refresh',
         ['menu.set_price_for']       = 'Set price for %s',
-
         ['owner.shop']           = 'Shop: %s',
         ['owner.balance']        = 'Balance: $%d',
         ['owner.platform_fee']   = 'Platform Fee: %d%%',
@@ -128,63 +113,63 @@ AZM.Locales = {
     },
 
     ['ar'] = {
+        -- عناوين وواجهات
         ['ui.title']        = 'تأجير القوارب',
-        ['ui.blip_name']    = 'نقطة تأجير القوارب',
-        ['ui.open_shop']    = 'فتح متجر: %s',
+        ['ui.blip_name']    = 'مكان تأجير القوارب',
+        ['ui.open_shop']    = 'فتح المتجر: %s',
         ['ui.owner_panel']  = 'لوحة المالك',
         ['ui.return_boat']  = 'إرجاع القارب',
         ['ui.amount']       = 'المبلغ',
         ['ui.new_price']    = 'السعر الجديد',
-        ['ui.top_left_prompt'] = 'اضغط للتفاعل', -- يستخدم في الصندوق أعلى يسار
+        ['ui.top_left_prompt'] = 'اضغط E للتفاعل', -- يظهر بجانب صندوق المفتاح
 
-        -- تلميحات (مفاتيح E) — بالعربية فقط
+        -- تلميحات (زر E)
         ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ للاستئجار',
-        ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ للوصول إلى لوحة المالك',
+        ['hint.press_e_owner']  = 'اضغط ~INPUT_PICKUP~ لفتح لوحة المالك',
         ['hint.press_e_return'] = 'اضغط ~INPUT_PICKUP~ لإرجاع القارب هنا',
 
-        -- إشعارات
+        -- إشعارات قصيرة للمستخدم
         ['notif.enjoy']     = 'استمتع برحلتك على %s!',
-        ['notif.destroyed'] = 'تم تدمير القارب، يمكنك الاستئجار مرة أخرى.',
+        ['notif.destroyed'] = 'تم تدمير القارب. يمكنك الاستئجار مرة أخرى.',
         ['notif.returned']  = 'تم إرجاع القارب بنجاح!',
 
-        -- أخطاء وإرشادات (مستخدمة بالسرفر أيضاً)
-        ['error.cannot_rent']        = 'لا يمكنك الاستئجار الآن.',
-        ['error.no_catalog']         = 'لا توجد قوارب متاحة حالياً.',
-        ['error.no_catalog_shop']    = 'لا توجد قوارب مخصصة لهذا المتجر.',
-        ['error.no_rental_this_shop']= 'ليس لديك استئجار نشط لهذا المتجر.',
+        -- أخطاء وإرشادات واضحة بالعربية
+        ['error.cannot_rent']        = 'لا يمكنك الاستئجار حالياً.',
+        ['error.no_catalog']         = 'لا توجد قوارب متاحة الآن.',
+        ['error.no_catalog_shop']    = 'لا توجد قوارب مُعرفة لهذا المتجر.',
+        ['error.no_rental_this_shop']= 'ليس لديك إيجار نشط من هذا المتجر.',
         ['error.boat_not_found']     = 'لم يتم العثور على القارب.',
-        ['error.owner_panel']        = 'لوحة المالك غير متاحة.',
-        ['error.model_load_failed']  = 'فشل تحميل الموديل: %s',
-        ['error.spawn_failed']       = 'حدث خطأ أثناء إنشاء القارب.',
-        ['error.no_active_rental']   = 'ليس لديك أي قارب مستأجر حالياً.',
-        ['error.no_spawn']           = 'لا توجد نقاط استدعاء متاحة حالياً.',
+        ['error.owner_panel']        = 'لوحة المالك غير متاحة حالياً.',
+        ['error.model_load_failed']  = 'فشل تحميل موديل: %s',
+        ['error.spawn_failed']       = 'فشل إنشاء القارب في الموقع.',
+        ['error.no_active_rental']   = 'ليس لديك أي إيجار حالياً.',
+        ['error.no_spawn']           = 'لا توجد نقاط إفراغ/استدعاء متاحة حالياً.',
         ['error.boat_unavailable']   = 'القارب غير متوفر حالياً.',
         ['error.need_money']         = 'تحتاج إلى $%d (السعر + الوديعة).',
-        ['error.price_out_of_range'] = 'السعر خارج الحدود المسموح بها (%d - %d).',
+        ['error.price_out_of_range'] = 'السعر خارج النطاق المسموح (%d - %d).',
         ['error.active_rental']      = 'لديك إيجار نشط بالفعل.',
-        ['error.must_wait']          = 'عليك الانتظار %02d:%02d قبل الاستئجار مرة أخرى.',
+        ['error.must_wait']          = 'عليك الانتظار %02d:%02d قبل استئجار آخر.',
         ['error.shop_not_found']     = 'المتجر غير موجود.',
         ['error.not_owner']          = 'أنت لست مالك هذا المتجر.',
         ['success.transfered']       = 'تم نقل ملكية المتجر بنجاح.',
-        ['success.claim_platform']   = 'تم سحب مبلغ $%d من خزنة المدينة.',
+        ['success.claim_platform']   = 'تم سحب $%d من خزنة المنصة.',
         ['admin.no_permission']      = 'ليس لديك صلاحية تنفيذ هذا الإجراء.',
 
-        -- قوائم وواجهات
+        -- القوائم وواجهات المالك
         ['menu.boats_title']         = '%s — القوارب المتاحة',
         ['menu.owner_title']         = 'لوحة المالك — %s',
         ['menu.withdraw_custom']     = 'سحب (مخصص)',
         ['menu.deposit_custom']      = 'إيداع (مخصص)',
         ['menu.set_prices']          = 'تعديل الأسعار',
         ['menu.refresh']             = 'تحديث',
-        ['menu.set_price_for']       = 'تحديد سعر %s',
+        ['menu.set_price_for']       = 'تعيين سعر %s',
 
-        -- تفاصيل المالك
+        -- تفاصيل الخزنة والمالك
         ['owner.shop']           = 'المتجر: %s',
         ['owner.balance']        = 'الرصيد: $%d',
         ['owner.platform_fee']   = 'نسبة المنصة: %d%%',
         ['owner.deposit_default']= 'الوديعة الافتراضية: $%d',
         ['owner.withdraw_1000']  = 'سحب $1,000',
         ['owner.withdraw_5000']  = 'سحب $5,000'
-
-    }    }
+    }
 }
