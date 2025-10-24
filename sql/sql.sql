@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS `azm_boat_rentals` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ====================================================
--- Default Seed Example (optional)
+-- Default Seed Example (optional) — synchronized with shared/config.lua
 -- ====================================================
 
 INSERT INTO `azm_boat_shops`
@@ -76,18 +76,33 @@ INSERT INTO `azm_boat_shops`
  `menu_x`, `menu_y`, `menu_z`, `menu_h`,
  `blip_x`, `blip_y`, `blip_z`)
 VALUES
-(1, 'Al Azm Marina 1', 0, 10, 100,
- -1600.08, -1176.98, 0.51, 300.47,
- -1600.08, -1176.98, 1.51, 0.88,
- -1600.08, -1176.98, 1.51);
+(1, 'استئجار قوارب العزم لوس', 0, 10, 100,
+  23.77, -2806.98, 5.7, 2.38,
+  23.77, -2806.98, 5.7, 2.38,
+  23.77, -2806.98, 5.7),
+(2, 'استئجار قوارب العزم بوليتو', 0, 10, 100,
+ -281.12, 6635.53, 7.56, 230.26,
+ -281.12, 6635.53, 7.56, 230.26,
+ -281.12, 6635.53, 7.56);
 
+-- Prices for shop 1 and shop 2 (keep labels in Arabic consistent with config)
 INSERT INTO `azm_boat_prices` (`shop_id`, `model`, `label`, `price`, `min_price`, `max_price`) VALUES
 (1, 'dinghy2', 'قارب صغير', 3000, 2000, 8000),
 (1, 'seashark', 'جيت سكي', 4000, 2000, 9000),
 (1, 'speeder', 'سبيدر', 6000, 4000, 10000),
 (1, 'toro', 'تورو', 8000, 5000, 12000),
-(1, 'jetmax', 'جيتماكس', 10000, 6000, 15000);
+(1, 'jetmax', 'جيتماكس', 10000, 6000, 15000),
+(2, 'dinghy2', 'قارب صغير', 3000, 2000, 8000),
+(2, 'seashark', 'جيت سكي', 4000, 2000, 9000),
+(2, 'speeder', 'سبيدر', 6000, 4000, 10000),
+(2, 'toro', 'تورو', 8000, 5000, 12000),
+(2, 'jetmax', 'جيتماكس', 10000, 6000, 15000);
 
-INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (1, -1639.12, -1198.00, 0.10, 106.12);
-INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (2, -813.42, -1504.21, 0.15, 171.12);
-INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (3, -304.18, 6631.41, 0.12, 142.00);
+-- Spawns (synchronized with AZM.Shops.spawns in shared/config.lua)
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (1, 14.88, -2822.49, 7.03, 5.79);
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (1, 24.88, -2826.72, 5.54, 4.60);
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (1, 37.58, -2825.81, 5.54, 2.87);
+
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (2, -291.59, 6635.82, 3.00, 16.62);
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (2, -285.34, 6637.68, 3.00, 75.29);
+INSERT IGNORE INTO azm_boat_shop_spawns (shop_id, x, y, z, h) VALUES (2, -279.55, 6643.45, 3.00, 9.22);
