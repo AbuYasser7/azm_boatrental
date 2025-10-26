@@ -35,11 +35,11 @@ AZM.Logs = {
 
 -- =============== Boat Catalog ===============
 AZM.Boats = {
-    { model = 'dinghy2',  label = 'قارب صغير',     price = 3000 },
-    { model = 'seashark', label = 'جيت سكي',        price = 4000 },
-    { model = 'speeder',  label = 'سبيدر',          price = 6000 },
+    { model = 'dinghy2',  label = 'قارب صغير',     price = 8000 },
+    { model = 'seashark', label = 'جيت سكي',        price = 8000 },
+    { model = 'speeder',  label = 'سبيدر',          price = 8000 },
     { model = 'toro',     label = 'تورو',           price = 8000 },
-    { model = 'jetmax',   label = 'جيتماكس',        price = 10000 },
+    { model = 'jetmax',   label = 'جيتماكس',        price = 8000 },
 }
 
 -- =============== Boat Shops ===============
@@ -69,6 +69,19 @@ AZM.Shops = {
             {x = -279.55, y = 6643.45, z = 3, h = 9.22},
         },
         returnZone = { x = -806.12, y = -1498.12, z = 0.2, w = 8.0, l = 8.0, h = 3.0 },
+    },
+    {
+        id = 3,
+        name = "استئجار قوارب غرب ساندي",
+        blip = { x = -3427.2, y = 967.62, z = 8.34 },
+        ped  = { x = -3427.2, y = 967.62, z = 8.34, heading = 281.54, model = "a_m_y_beach_02" },
+        menu = { x = -3427.2, y = 967.62, z = 8.34, heading = 281.54 },
+        spawns = {
+            {x = -3438.2, y = 981.87, z = 0.1, h = 85.27},
+            {x = -3443.66, y = 963.05, z = 0.03, h = 89.82},
+            {x = -3436.9, y = 930.46, z = 0.01, h = 64.63},
+        },
+        returnZone = { x = -3313.96, y = 952.91, z = -0.38, w = 8.0, l = 8.0, h = 3.0 },
     },
 }
 
