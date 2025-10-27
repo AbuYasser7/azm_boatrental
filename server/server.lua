@@ -364,9 +364,24 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     end
 
     local spawn = chooseFreeSpawn(shop)
-    if not spawn then
+    if not spawn or not isCoordValid(spawn) then
+        -- try fallback: first spawn in config (if exists)
+        local fb = nil
+        if AZM and AZM.Shops then
+            for _, ss in ipairs(AZM.Shops) do
+                if ss.id == shop.id and ss.spawns and #ss.spawns>0 then
+                    fb = ss.spawns[1]; break
+                end
+            end
+        end
+        if fb and isCoordValid(fb) then
+            spawn = { x = tonumber(fb.x), y = tonumber(fb.y), z = tonumber(fb.z), h = tonumber(fb.h) or 0.0 }
+        end
+    end
+
+    if not spawn or not isCoordValid(spawn) then
         notify(src, SL('error.no_spawn'), 'error')
-        sendLog("🚫 No Spawn", ("Shop: **%s** | Requested by **%s** (%s)"):format(shop.name, xPlayer.getName(), identifier), COLOR_ERROR)
+        sendLog("🚫 No Valid Spawn (server)", ("Shop: **%s** | Requested by **%s** (%s)\nSpawn attempted: %s"):format(shop.name, xPlayer.getName(), identifier, tostring(spawn)), COLOR_ERROR)
         return
     end
 

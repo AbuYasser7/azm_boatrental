@@ -114,23 +114,50 @@ local function ensureCleanVehicles(maxKeep)
     end
 end
 
+-- robust ground finder (tries ground, then water, with retries)
 local function fixGroundZ(x,y,z)
+    if not x or not y or not z then return nil end
+    z = tonumber(z) or 0.0
     local gz = nil
-    local retries = 10
-    for i=1,retries do
-        local found, groundZ = GetGroundZFor_3dCoord(x, y, z + 5.0, 0)
+    -- try using GetGroundZFor_3dCoord
+    for i=0,10 do
+        local tryZ = z + (i * 1.0)
+        local found, groundZ = GetGroundZFor_3dCoord(x, y, tryZ + 5.0, 0)
         if found and groundZ and groundZ > -1000 then
             gz = groundZ
             break
         end
-        z = z + 1.0
-        Wait(10)
+        Wait(5)
     end
-    return gz or z
+    -- fallback: try water height native (if available)
+    if not gz then
+        local ok, waterZ = GetWaterHeight(x, y, z + 5.0)
+        if ok and waterZ and waterZ > -1000 then gz = waterZ end
+    end
+    -- final fallback: use provided z clamped to reasonable range
+    if not gz then
+        if z < -2000 or z > 2000 then return nil end
+        gz = z
+    end
+    return gz
 end
 
+-- validate numeric coordinate table
+local function isValidCoordTable(c)
+    if type(c) ~= 'table' then return false end
+    if not c.x or not c.y or not c.z then return false end
+    if type(c.x) ~= 'number' or type(c.y) ~= 'number' or type(c.z) ~= 'number' then return false end
+    if math.abs(c.x) > 100000 or math.abs(c.y) > 100000 then return false end
+    return true
+end
+
+-- improved spawn with collision & safe waits
 local function spawnClientBoat(model, coords, plate)
-    -- حماية من تسريب كيانات
+    if not isValidCoordTable(coords) then
+        notify({ description = L('error.spawn_failed'), type = 'error' })
+        return nil
+    end
+
     ensureCleanVehicles(6)
 
     local hash = joaat(model)
@@ -139,31 +166,50 @@ local function spawnClientBoat(model, coords, plate)
         return nil
     end
 
-    -- تصحيح z إلى أرض ثابتة إن أمكن
-    coords.z = fixGroundZ(coords.x, coords.y, coords.z or 0.0)
+    -- fix ground/z
+    local groundZ = fixGroundZ(coords.x, coords.y, coords.z or 0.0)
+    if not groundZ then
+        SetModelAsNoLongerNeeded(hash)
+        notify({ description = L('error.spawn_failed'), type = 'error' })
+        return nil
+    end
+    coords.z = groundZ + 0.5
 
-    local veh = CreateVehicle(hash, coords.x, coords.y, coords.z + 0.5, coords.h or 0.0, true, false)
+    -- request collision at coord
+    RequestCollisionAtCoord(coords.x, coords.y, coords.z)
+    local t0 = GetGameTimer()
+    while not HasCollisionLoadedAroundEntity(PlayerPedId()) and (GetGameTimer() - t0) < 3000 do
+        Wait(10)
+    end
+
+    local veh = CreateVehicle(hash, coords.x, coords.y, coords.z, coords.h or 0.0, true, false)
     if not DoesEntityExist(veh) then
         SetModelAsNoLongerNeeded(hash)
         notify({ description = L('error.spawn_failed'), type = 'error' })
         return nil
     end
 
+    -- safety: ensure vehicle is on ground and collision ready
+    SetEntityCoordsNoOffset(veh, coords.x, coords.y, coords.z, false, false, false)
+    Wait(50)
     SetVehicleOnGroundProperly(veh)
+    Wait(50)
     SetEntityAsMissionEntity(veh, true, true)
     SetVehicleEngineOn(veh, true, true, false)
     SetVehicleDirtLevel(veh, 0.0)
     SetVehicleNumberPlateText(veh, plate or ('AZM'..math.random(1000,9999)))
+    SetVehicleHasBeenOwnedByPlayer(veh, true)
+    NetworkRegisterEntityAsNetworked(veh)
+    local netId = VehToNet(veh)
+    NetworkSetNetworkIdCanMigrate(netId, true)
 
-    -- warp with small delay to ensure entity valid
-    Wait(50)
+    -- warp ped after a small delay to avoid teleport race
+    Wait(80)
     if DoesEntityExist(veh) then
         TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
     end
 
-    local netId = VehToNet(veh)
     createdVehicles[#createdVehicles+1] = {veh = veh, net = netId}
-
     SetModelAsNoLongerNeeded(hash)
     return veh
 end
