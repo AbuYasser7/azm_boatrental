@@ -788,5 +788,14 @@ end, true, { help = 'Set default deposit', arguments = {
     { name = 'amount', help = 'Deposit amount', type = 'number' }
 }})
 
+-- simple coord validator used server-side (prevents nil/invalid spawn usage)
+local function isCoordValid(c)
+    if type(c) ~= 'table' then return false end
+    if not c.x or not c.y or not c.z then return false end
+    if type(c.x) ~= 'number' or type(c.y) ~= 'number' or type(c.z) ~= 'number' then return false end
+    if math.abs(c.x) > 100000 or math.abs(c.y) > 100000 then return false end
+    return true
+end
+
 -- utility for vec3 on server if needed
 function vec3(x, y, z) return vector3(x+0.0, y+0.0, z+0.0) end

@@ -47,9 +47,9 @@ AZM.Shops = {
     {
         id = 1,
         name = "استئجار قوارب العزم لوس",
-        blip = { x = 23.77, y = -2806.98, z = 5.7 },
-        ped  = { x = 23.77, y = -2806.98, z = 5.7, heading = 2.38, model = "a_m_y_surfer_01" },
-        menu = { x = 23.77, y = -2806.98, z = 5.7, heading = 2.38 },
+        blip = { x = 23.86, y = -2806.33, z = 5.7 },
+        ped  = { x = 23.86, y = -2806.33, z = 5.7, heading = 6.46, model = "a_m_y_surfer_01" },
+        menu = { x = 23.86, y = -2806.33, z = 5.7, heading = 6.46 },
         spawns = {
             {x = 14.88, y = -2822.49, z = 7.03, h = 5.79},
             {x = 24.88, y = -2826.72, z = 5.54, h = 4.6},
@@ -60,9 +60,9 @@ AZM.Shops = {
     {
         id = 2,
         name = "استئجار قوارب العزم بوليتو",
-        blip = { x = -281.12, y = 6635.53, z = 7.56 },
-        ped  = { x = -281.12, y = 6635.53, z = 7.56, heading = 230.26, model = "a_m_y_beach_02" },
-        menu = { x = -281.12, y = 6635.53, z = 7.56, heading = 230.26 },
+        blip = { x = -280.83, y = 6635.11, z = 7.54 },
+        ped  = { x = -280.83, y = 6635.11, z = 7.54, heading = 213.68, model = "a_m_y_beach_02" },
+        menu = { x = -280.83, y = 6635.11, z = 7.54, heading = 213.68 },
         spawns = {
             {x = -291.59, y = 6635.82, z = 3, h = 16.62},
             {x = -285.34, y = 6637.68, z = 3, h = 75.29},
@@ -73,9 +73,9 @@ AZM.Shops = {
     {
         id = 3,
         name = "استئجار قوارب غرب ساندي",
-        blip = { x = -3427.2, y = 967.62, z = 8.34 },
-        ped  = { x = -3427.2, y = 967.62, z = 8.34, heading = 281.54, model = "a_m_y_beach_02" },
-        menu = { x = -3427.2, y = 967.62, z = 8.34, heading = 281.54 },
+        blip = { x = -3426.7, y = 967.57, z = 8.34 },
+        ped  = { x = -3426.7, y = 967.57, z = 8.34, heading = 270.63, model = "a_m_y_beach_02" },
+        menu = { x = -3426.7, y = 967.57, z = 8.34, heading = 270.63 },
         spawns = {
             {x = -3438.2, y = 981.87, z = 0.1, h = 85.27},
             {x = -3443.66, y = 963.05, z = 0.03, h = 89.82},
@@ -86,6 +86,7 @@ AZM.Shops = {
 }
 
 -- =============== Localization (Locales) ===============
+-- ensure the top-left prompt key exists and is English only (shows "Press E to interact")
 AZM.Locales = {
     ['en'] = {
         ['ui.title']        = 'Boat Rental',
@@ -95,6 +96,7 @@ AZM.Locales = {
         ['ui.return_boat']  = 'Return Rented Boat',
         ['ui.amount']       = 'Amount',
         ['ui.new_price']    = 'New Price',
+        ['ui.top_left_prompt'] = 'Press E to interact',
         ['hint.press_e_rent']   = 'Press ~INPUT_PICKUP~ to rent a boat',
         ['hint.press_e_owner']  = 'Press ~INPUT_PICKUP~ to open Owner Panel',
         ['hint.press_e_return'] = 'Press ~INPUT_PICKUP~ to return your boat',
@@ -134,7 +136,7 @@ AZM.Locales = {
         ['ui.return_boat']  = 'إرجاع القارب',
         ['ui.amount']       = 'المبلغ',
         ['ui.new_price']    = 'السعر الجديد',
-        ['ui.top_left_prompt'] = 'اضغط E للتفاعل', -- يظهر بجانب صندوق المفتاح
+        ['ui.top_left_prompt'] = 'Press E to interact', -- show English top-left prompt per request
 
         -- تلميحات (زر E)
         ['hint.press_e_rent']   = 'اضغط ~INPUT_PICKUP~ للاستئجار',
