@@ -46,10 +46,10 @@ local function showHelp(msg)
     EndTextCommandDisplayHelp(0, false, true, -1)
 end
 
--- draw a small top-left key prompt (E) - draw only the key box + "E" (Arabic text uses showHelp)
+-- draw a small top-left key prompt (E) - draw English text to avoid Arabic glyph/square issues
 local function drawTopLeftEPrompt()
-    local x, y, w, h = 0.08, 0.02, 0.16, 0.05
-    -- background
+    local x, y = 0.08, 0.02
+    local w, h = 0.32, 0.05
     DrawRect(x + w / 2, y + h / 2, w, h, 0, 0, 0, 180)
     -- key box
     local keyX, keyY, keyW, keyH = x + 0.014, y + 0.013, 0.028, 0.036
@@ -62,6 +62,14 @@ local function drawTopLeftEPrompt()
     SetTextEntry('STRING')
     AddTextComponentString('E')
     DrawText(keyX + keyW / 2 - 0.003, keyY + keyH / 2 - 0.007)
+    -- english label to the right (ASCII only)
+    SetTextFont(0)
+    SetTextScale(0.32, 0.32)
+    SetTextColour(255,255,255,255)
+    SetTextCentre(false)
+    SetTextEntry('STRING')
+    AddTextComponentString(L('ui.top_left_prompt')) -- should be English in config
+    DrawText(x + 0.052, y + 0.005)
 end
 
 -- =========================
@@ -330,8 +338,12 @@ end)
 -- Rental spawn approval from server
 -- =========================
 RegisterNetEvent('azm_boats:spawnApproved', function(shop_id, model, coords, plate)
+    print(("[azm_boatrental] client received spawnApproved shop=%s model=%s plate=%s coords=%s"):format(tostring(shop_id), tostring(model), tostring(plate), json.encode(coords or {})))
     local veh = spawnClientBoat(model, coords, plate)
-    if not veh then return end
+    if not veh then
+        print("[azm_boatrental] spawnClientBoat failed on client")
+        return
+    end
     myRental = { shop_id = shop_id, plate = plate, veh = VehToNet(veh) }
     notify({ description = L('notif.enjoy', model), type = 'success' })
 end)

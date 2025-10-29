@@ -319,11 +319,18 @@ end)
 
 RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     local src = source
+    print(("[azm_boatrental] requestRent called by src=%s shopId=%s model=%s"):format(tostring(src), tostring(shopId), tostring(model)))
     local xPlayer = ESX.GetPlayerFromId(src)
-    if not xPlayer then return end
+    if not xPlayer then
+        print("[azm_boatrental] requestRent: ESX player not found")
+        return
+    end
     local identifier = iden(xPlayer)
     local shop = ShopsCache[shopId]
-    if not shop then return end
+    if not shop then
+        print(("[azm_boatrental] requestRent: shop %s not found"):format(tostring(shopId)))
+        return
+    end
 
     local ok, msg = canPlayerRent(identifier)
     if not ok then
@@ -364,6 +371,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     end
 
     local spawn = chooseFreeSpawn(shop)
+    print(("[azm_boatrental] chosen spawn (server): %s"):format(tostring(spawn)))
     if not spawn or not isCoordValid(spawn) then
         -- try fallback: first spawn in config (if exists)
         local fb = nil
@@ -388,28 +396,22 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     -- take money (price + deposit)
     xPlayer.removeMoney(total)
 
-    -- تقسيم السعر: platformPct = نسبة خدمة المدينة (مثال: 50%)
-    -- owner_share = السعر * (100 - platformPct) / 100
-    local owner_share = math.floor(price * (100 - platformPct) / 100)
-    local platform_share = price - owner_share
-
-    -- نضيف حصة المالك إلى رصيد المتجر
-    MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { owner_share, shopId })
-    shop.balance = (shop.balance or 0) + owner_share
-
-    -- نحفظ حصة المدينة داخل الخزنة العامة (قابلة للسحب بأمر سوبرأدمن)
-    PlatformVault = PlatformVault + platform_share
-
-    local plate = randPlate()
-
-    -- persist rental
-    MySQL.insert.await([[
-        INSERT INTO azm_boat_rentals (identifier, shop_id, model, plate, rented_at, deposit_taken, status)
-        VALUES (?,?,?,?,NOW(),?,?)
-    ]], { identifier, shopId, model, plate, deposit, 'active' })
+    -- persist rental (catch DB errors so we still see logs)
+    local okinsert, ierr = pcall(function()
+        MySQL.insert.await([ [
+            INSERT INTO azm_boat_rentals (identifier, shop_id, model, plate, rented_at, deposit_taken, status)
+            VALUES (?,?,?,?,NOW(),?,?)
+        ]], { identifier, shopId, model, plate, deposit, 'active' })
+    end)
+    if not okinsert then
+        print(("[azm_boatrental] MySQL insert failed: %s"):format(tostring(ierr)))
+        notify(src, "Internal DB error, check server console.", 'error')
+        return
+    end
 
     ActiveRentals[identifier] = { shop_id = shopId, identifier = identifier, plate = plate, started = os.time() }
 
+    print(("[azm_boatrental] triggering spawnApproved -> src=%s model=%s plate=%s spawn=%s"):format(tostring(src), tostring(model), tostring(plate), tostring(spawn)))
     TriggerClientEvent('azm_boats:spawnApproved', src, shopId, model, spawn, plate)
     notify(src, ('Charged $%d (incl. $%d deposit).'):format(total, deposit), 'success')
 
