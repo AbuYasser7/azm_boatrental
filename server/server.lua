@@ -374,6 +374,9 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
         ShopsCache[shopId].balance = (ShopsCache[shopId].balance or 0) + owner_share
     end
 
+    -- إنشاء رقم اللوحة قبل استخدامه
+    local plate = randPlate()
+    
     local spawn = chooseFreeSpawn(shop)
     print(("[azm_boatrental] chosen spawn (server): %s"):format(tostring(spawn)))
     if not spawn or not isCoordValid(spawn) then
@@ -802,6 +805,3 @@ local function isCoordValid(c)
     if math.abs(c.x) > 100000 or math.abs(c.y) > 100000 then return false end
     return true
 end
-
--- utility for vec3 on server if needed
-function vec3(x, y, z) return vector3(x+0.0, y+0.0, z+0.0) end
