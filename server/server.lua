@@ -347,15 +347,6 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
     end
 
     local price = priceInfo.price or 0
-    local minp  = priceInfo.min_price or 0
-    local maxp  = priceInfo.max_price or 2147483647
-    if price < minp or price > maxp then
-        notify(src, SL('error.price_out_of_range', minp, maxp), 'error')
-        sendLog("⚠️ Price Out of Range", ("Shop: **%s**\nModel: **%s**\nPrice: **%d** (Allowed: %d - %d)\nBy: **%s** (%s)")
-            :format(shop.name, tostring(model), price, minp, maxp, xPlayer.getName(), identifier), COLOR_WARN)
-        return
-    end
-
     local deposit = shop.deposit_default or 0
     local platformPct = shop.platform_fee_pct or 0
     if deposit < 0 then deposit = 0 end
@@ -368,6 +359,19 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
         sendLog("💸 Insufficient Cash", ("Player: **%s** (%s)\nNeeded: **$%d**\nHave: **$%d**")
             :format(xPlayer.getName(), identifier, total, xPlayer.getMoney()), COLOR_WARN)
         return
+    end
+
+    -- Calculate revenue split
+    local platform_share = math.floor((price * platformPct) / 100)
+    local owner_share = price - platform_share
+    
+    -- Update platform vault
+    PlatformVault = PlatformVault + platform_share
+    
+    -- Update shop balance with owner's share
+    MySQL.update.await('UPDATE azm_boat_shops SET balance = balance + ? WHERE id = ?', { owner_share, shopId })
+    if ShopsCache[shopId] then 
+        ShopsCache[shopId].balance = (ShopsCache[shopId].balance or 0) + owner_share
     end
 
     local spawn = chooseFreeSpawn(shop)
@@ -398,7 +402,7 @@ RegisterNetEvent('azm_boats:requestRent', function(shopId, model)
 
     -- persist rental (catch DB errors so we still see logs)
     local okinsert, ierr = pcall(function()
-        MySQL.insert.await([ [
+        MySQL.insert.await([[
             INSERT INTO azm_boat_rentals (identifier, shop_id, model, plate, rented_at, deposit_taken, status)
             VALUES (?,?,?,?,NOW(),?,?)
         ]], { identifier, shopId, model, plate, deposit, 'active' })
